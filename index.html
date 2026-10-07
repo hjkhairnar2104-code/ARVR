@@ -1,0 +1,1505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+
+  <title>Crystal Hunter - A-Frame Game</title>
+
+
+  <!-- A-Frame -->
+  <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
+
+
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+    }
+
+
+    /* GAME HUD */
+    #hud {
+      position: fixed;
+      top: 15px;
+      left: 15px;
+      z-index: 100;
+      color: white;
+      background: rgba(0, 0, 0, 0.65);
+      padding: 15px 20px;
+      border-radius: 12px;
+      min-width: 180px;
+      font-size: 18px;
+      pointer-events: none;
+    }
+
+
+    #hud div {
+      margin: 5px 0;
+    }
+
+
+    #message {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 200;
+      color: white;
+      background: rgba(0, 0, 0, 0.85);
+      padding: 40px;
+      border-radius: 20px;
+      text-align: center;
+      display: none;
+    }
+
+
+    #message h1 {
+      font-size: 45px;
+      margin: 0 0 15px;
+      color: #00ffff;
+    }
+
+
+    #message p {
+      font-size: 20px;
+    }
+
+
+    #restart {
+      padding: 12px 25px;
+      border: none;
+      border-radius: 8px;
+      background: #00ffff;
+      color: black;
+      font-size: 18px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+
+    #restart:hover {
+      background: white;
+    }
+
+
+    #instructions {
+      position: fixed;
+      bottom: 15px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 100;
+      background: rgba(0, 0, 0, 0.6);
+      color: white;
+      padding: 10px 18px;
+      border-radius: 10px;
+      text-align: center;
+      pointer-events: none;
+    }
+
+
+    /* Mobile controls */
+    #mobileControls {
+      display: none;
+      position: fixed;
+      bottom: 25px;
+      left: 20px;
+      z-index: 150;
+    }
+
+
+    .controlButton {
+      width: 55px;
+      height: 55px;
+      margin: 3px;
+      border: none;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.35);
+      color: white;
+      font-size: 22px;
+    }
+
+
+    @media (max-width: 700px) {
+      #mobileControls {
+        display: block;
+      }
+
+
+      #instructions {
+        display: none;
+      }
+    }
+  </style>
+</head>
+
+
+<body>
+
+
+  <!-- =========================
+       GAME HUD
+  ========================== -->
+
+
+  <div id="hud">
+    <div>💎 Score: <span id="score">0</span></div>
+    <div>❤️ Health: <span id="health">3</span></div>
+    <div>⏱️ Time: <span id="timer">60</span></div>
+    <div>💎 Crystals: <span id="crystals">0</span>/10</div>
+  </div>
+
+
+  <!-- =========================
+       GAME OVER / WIN SCREEN
+  ========================== -->
+
+
+  <div id="message">
+    <h1 id="messageTitle">YOU WIN!</h1>
+    <p id="messageText">You collected all the crystals.</p>
+
+
+    <button id="restart" onclick="restartGame()">
+      🔄 PLAY AGAIN
+    </button>
+  </div>
+
+
+  <!-- =========================
+       CONTROLS
+  ========================== -->
+
+
+  <div id="instructions">
+    🎮 WASD / Arrow Keys to move &nbsp; | &nbsp;
+    🖱️ Mouse to look around
+  </div>
+
+
+  <!-- Mobile controls -->
+
+
+  <div id="mobileControls">
+    <button class="controlButton" id="up">▲</button>
+    <br>
+
+
+    <button class="controlButton" id="left">◀</button>
+    <button class="controlButton" id="down">▼</button>
+    <button class="controlButton" id="right">▶</button>
+  </div>
+
+
+  <!-- =========================
+       A-FRAME SCENE
+  ========================== -->
+
+
+  <a-scene
+    background="color: #050816"
+    fog="type: exponential; color: #050816; density: 0.025"
+    renderer="colorManagement: true"
+  >
+
+
+    <!-- =========================
+         ASSETS
+    ========================== -->
+
+
+    <a-assets>
+
+
+      <!-- Crystal -->
+      <a-mixin
+        id="crystal"
+        geometry="primitive: octahedron; radius: 0.45"
+        material="
+          color: #00ffff;
+          emissive: #00ffff;
+          emissiveIntensity: 2;
+          metalness: 0.5;
+          roughness: 0.2
+        "
+      ></a-mixin>
+
+
+      <!-- Enemy -->
+      <a-mixin
+        id="enemy"
+        geometry="primitive: sphere; radius: 0.55"
+        material="
+          color: #ff1744;
+          emissive: #ff1744;
+          emissiveIntensity: 1.5
+        "
+      ></a-mixin>
+
+
+    </a-assets>
+
+
+    <!-- =========================
+         LIGHTING
+    ========================== -->
+
+
+    <a-light
+      type="ambient"
+      color="#6688ff"
+      intensity="0.7">
+    </a-light>
+
+
+    <a-light
+      type="point"
+      position="0 5 0"
+      color="#00ffff"
+      intensity="2"
+      distance="30">
+    </a-light>
+
+
+    <!-- =========================
+         SKY
+    ========================== -->
+
+
+    <a-sky color="#050816"></a-sky>
+
+
+    <!-- =========================
+         GROUND
+    ========================== -->
+
+
+    <a-plane
+      id="ground"
+      position="0 0 0"
+      rotation="-90 0 0"
+      width="40"
+      height="40"
+      color="#111827"
+    ></a-plane>
+
+
+    <!-- Grid-like arena -->
+
+
+    <a-plane
+      position="0 0.01 0"
+      rotation="-90 0 0"
+      width="40"
+      height="40"
+      material="
+        color: #0b1220;
+        wireframe: true;
+        wireframeLinewidth: 1
+      "
+    ></a-plane>
+
+
+    <!-- =========================
+         ARENA WALLS
+    ========================== -->
+
+
+    <a-box
+      position="0 2 -20"
+      width="40"
+      height="4"
+      depth="0.5"
+      color="#182848">
+    </a-box>
+
+
+    <a-box
+      position="0 2 20"
+      width="40"
+      height="4"
+      depth="0.5"
+      color="#182848">
+    </a-box>
+
+
+    <a-box
+      position="-20 2 0"
+      width="0.5"
+      height="4"
+      depth="40"
+      color="#182848">
+    </a-box>
+
+
+    <a-box
+      position="20 2 0"
+      width="0.5"
+      height="4"
+      depth="40"
+      color="#182848">
+    </a-box>
+
+
+    <!-- =========================
+         DECORATION
+    ========================== -->
+
+
+    <a-torus
+      position="0 0.1 0"
+      rotation="90 0 0"
+      radius="4"
+      radius-tubular="0.05"
+      color="#00ffff"
+      material="emissive: #00ffff; emissiveIntensity: 2">
+    </a-torus>
+
+
+    <a-torus
+      position="0 0.1 0"
+      rotation="90 0 0"
+      radius="8"
+      radius-tubular="0.03"
+      color="#3949ab">
+    </a-torus>
+
+
+    <!-- =========================
+         PLAYER
+    ========================== -->
+
+
+    <a-entity
+      id="player"
+      position="0 0 8"
+      player-controller
+    >
+
+
+      <!-- Camera -->
+      <a-camera
+        id="camera"
+        position="0 1.6 0"
+        look-controls="enabled: true"
+      >
+
+
+        <!-- Crosshair -->
+        <a-entity
+          position="0 0 -1"
+          geometry="
+            primitive: ring;
+            radiusInner: 0.008;
+            radiusOuter: 0.012
+          "
+          material="color: white; shader: flat"
+        ></a-entity>
+
+
+      </a-camera>
+
+
+      <!-- Player light -->
+      <a-light
+        type="point"
+        color="#00ffff"
+        intensity="0.7"
+        distance="6"
+        position="0 1 0">
+      </a-light>
+
+
+    </a-entity>
+
+
+    <!-- =========================
+         CRYSTALS
+    ========================== -->
+
+
+    <a-entity id="crystals">
+
+
+      <a-entity
+        class="collectible"
+        crystal
+        mixin="crystal"
+        position="-8 1 -8">
+      </a-entity>
+
+
+      <a-entity
+        class="collectible"
+        mixin="crystal"
+        position="7 1 -10">
+      </a-entity>
+
+
+      <a-entity
+        class="collectible"
+        mixin="crystal"
+        position="-12 1 3">
+      </a-entity>
+
+
+      <a-entity
+        class="collectible"
+        mixin="crystal"
+        position="10 1 5">
+      </a-entity>
+
+
+      <a-entity
+        class="collectible"
+        mixin="crystal"
+        position="-5 1 12">
+      </a-entity>
+
+
+      <a-entity
+        class="collectible"
+        mixin="crystal"
+        position="5 1 14">
+      </a-entity>
+
+
+      <a-entity
+        class="collectible"
+        mixin="crystal"
+        position="-14 1 -12">
+      </a-entity>
+
+
+      <a-entity
+        class="collectible"
+        mixin="crystal"
+        position="14 1 -5">
+      </a-entity>
+
+
+      <a-entity
+        class="collectible"
+        mixin="crystal"
+        position="-2 1 -14">
+      </a-entity>
+
+
+      <a-entity
+        class="collectible"
+        mixin="crystal"
+        position="12 1 12">
+      </a-entity>
+
+
+    </a-entity>
+
+
+    <!-- =========================
+         ENEMIES
+    ========================== -->
+
+
+    <a-entity id="enemies">
+
+
+      <a-entity
+        class="enemy"
+        mixin="enemy"
+        position="-8 0.6 -2"
+        enemy-controller
+      ></a-entity>
+
+
+      <a-entity
+        class="enemy"
+        mixin="enemy"
+        position="8 0.6 -6"
+        enemy-controller
+      ></a-entity>
+
+
+      <a-entity
+        class="enemy"
+        mixin="enemy"
+        position="-10 0.6 10"
+        enemy-controller
+      ></a-entity>
+
+
+    </a-entity>
+
+
+    <!-- =========================
+         PARTICLE EFFECT CONTAINER
+    ========================== -->
+
+
+    <a-entity id="effects"></a-entity>
+
+
+  </a-scene>
+
+
+
+
+  <!-- =====================================================
+       JAVASCRIPT
+  ====================================================== -->
+
+
+  <script>
+
+
+    /* ================================================
+       GAME VARIABLES
+    ================================================= */
+
+
+    let score = 0;
+    let health = 3;
+    let collected = 0;
+    let timeLeft = 60;
+
+
+    let gameRunning = true;
+
+
+    const MAX_CRYSTALS = 10;
+
+
+    /* ================================================
+       DOM ELEMENTS
+    ================================================= */
+
+
+    const scoreText = document.getElementById("score");
+    const healthText = document.getElementById("health");
+    const timerText = document.getElementById("timer");
+    const crystalText = document.getElementById("crystals");
+
+
+    const message = document.getElementById("message");
+    const messageTitle = document.getElementById("messageTitle");
+    const messageText = document.getElementById("messageText");
+
+
+
+
+    /* ================================================
+       UPDATE HUD
+    ================================================= */
+
+
+    function updateHUD() {
+
+
+      scoreText.textContent = score;
+
+
+      healthText.textContent = health;
+
+
+      timerText.textContent = timeLeft;
+
+
+      crystalText.textContent =
+        collected + "/" + MAX_CRYSTALS;
+
+
+    }
+
+
+
+
+    /* ================================================
+       GAME OVER
+    ================================================= */
+
+
+    function gameOver() {
+
+
+      if (!gameRunning) return;
+
+
+      gameRunning = false;
+
+
+      message.style.display = "block";
+
+
+      messageTitle.textContent = "GAME OVER";
+
+
+      messageTitle.style.color = "#ff1744";
+
+
+      messageText.textContent =
+        "You ran out of health! Score: " + score;
+
+
+    }
+
+
+
+
+    /* ================================================
+       WIN GAME
+    ================================================= */
+
+
+    function winGame() {
+
+
+      if (!gameRunning) return;
+
+
+      gameRunning = false;
+
+
+      message.style.display = "block";
+
+
+      messageTitle.textContent = "YOU WIN!";
+
+
+      messageTitle.style.color = "#00ffff";
+
+
+      messageText.textContent =
+        "Amazing! You collected all 10 crystals. Score: " + score;
+
+
+    }
+
+
+
+
+    /* ================================================
+       TIMER
+    ================================================= */
+
+
+    setInterval(function() {
+
+
+      if (!gameRunning) return;
+
+
+      timeLeft--;
+
+
+      updateHUD();
+
+
+      if (timeLeft <= 0) {
+
+
+        gameOver();
+
+
+      }
+
+
+    }, 1000);
+
+
+
+
+    /* ================================================
+       CRYSTAL COLLECTION
+    ================================================= */
+
+
+    function collectCrystal(crystal) {
+
+
+      if (!gameRunning) return;
+
+
+      if (crystal.getAttribute("visible") === false) {
+        return;
+      }
+
+
+      /* Hide crystal */
+
+
+      crystal.setAttribute("visible", false);
+
+
+      /* Score */
+
+
+      score += 10;
+
+
+      collected++;
+
+
+      updateHUD();
+
+
+      /* Explosion */
+
+
+      createExplosion(
+        crystal.object3D.position,
+        "#00ffff"
+      );
+
+
+      /* Check win */
+
+
+      if (collected >= MAX_CRYSTALS) {
+
+
+        winGame();
+
+
+      }
+
+
+    }
+
+
+
+
+    /* ================================================
+       CREATE EXPLOSION
+    ================================================= */
+
+
+    function createExplosion(position, color) {
+
+
+      const effects =
+        document.getElementById("effects");
+
+
+      for (let i = 0; i < 15; i++) {
+
+
+        const particle =
+          document.createElement("a-sphere");
+
+
+        particle.setAttribute(
+          "radius",
+          "0.06"
+        );
+
+
+        particle.setAttribute(
+          "color",
+          color
+        );
+
+
+        particle.setAttribute(
+          "material",
+          "emissive: " + color +
+          "; emissiveIntensity: 3"
+        );
+
+
+        particle.setAttribute(
+          "position",
+          position
+        );
+
+
+        /* Random direction */
+
+
+        const x =
+          (Math.random() - 0.5) * 3;
+
+
+        const y =
+          Math.random() * 2;
+
+
+        const z =
+          (Math.random() - 0.5) * 3;
+
+
+        particle.setAttribute(
+          "animation__move",
+          `
+            property: position;
+            to: ${
+              position.x + x
+            } ${
+              position.y + y
+            } ${
+              position.z + z
+            };
+            dur: 700;
+            easing: easeOutQuad
+          `
+        );
+
+
+        particle.setAttribute(
+          "animation__fade",
+          `
+            property: material.opacity;
+            to: 0;
+            dur: 700
+          `
+        );
+
+
+        effects.appendChild(particle);
+
+
+        /* Remove particle */
+
+
+        setTimeout(function() {
+
+
+          particle.remove();
+
+
+        }, 800);
+
+
+      }
+
+
+    }
+
+
+
+
+    /* ================================================
+       DAMAGE PLAYER
+    ================================================= */
+
+
+    function damagePlayer() {
+
+
+      if (!gameRunning) return;
+
+
+      health--;
+
+
+      updateHUD();
+
+
+      /* Screen flash */
+
+
+      document.body.style.backgroundColor =
+        "rgba(255,0,0,0.5)";
+
+
+      setTimeout(function() {
+
+
+        document.body.style.backgroundColor =
+          "transparent";
+
+
+      }, 150);
+
+
+      if (health <= 0) {
+
+
+        gameOver();
+
+
+      }
+
+
+    }
+
+
+
+
+    /* ================================================
+       PLAYER CONTROLLER
+    ================================================= */
+
+
+    AFRAME.registerComponent(
+      "player-controller",
+      {
+
+
+        schema: {
+
+
+          speed: {
+            type: "number",
+            default: 0.12
+          }
+
+
+        },
+
+
+        init: function() {
+
+
+          this.keys = {};
+
+
+          window.addEventListener(
+            "keydown",
+            (event) => {
+
+
+              this.keys[event.key.toLowerCase()] = true;
+
+
+            }
+          );
+
+
+          window.addEventListener(
+            "keyup",
+            (event) => {
+
+
+              this.keys[event.key.toLowerCase()] = false;
+
+
+            }
+          );
+
+
+        },
+
+
+        tick: function() {
+
+
+          if (!gameRunning) return;
+
+
+          const position =
+            this.el.object3D.position;
+
+
+          const speed =
+            this.data.speed;
+
+
+          /* Keyboard */
+
+
+          if (
+            this.keys["w"] ||
+            this.keys["arrowup"]
+          ) {
+
+
+            position.z -= speed;
+
+
+          }
+
+
+          if (
+            this.keys["s"] ||
+            this.keys["arrowdown"]
+          ) {
+
+
+            position.z += speed;
+
+
+          }
+
+
+          if (
+            this.keys["a"] ||
+            this.keys["arrowleft"]
+          ) {
+
+
+            position.x -= speed;
+
+
+          }
+
+
+          if (
+            this.keys["d"] ||
+            this.keys["arrowright"]
+          ) {
+
+
+            position.x += speed;
+
+
+          }
+
+
+          /* Keep player inside arena */
+
+
+          position.x =
+            Math.max(
+              -18,
+              Math.min(18, position.x)
+            );
+
+
+          position.z =
+            Math.max(
+              -18,
+              Math.min(18, position.z)
+            );
+
+
+          /* Check crystals */
+
+
+          const crystals =
+            document.querySelectorAll(
+              ".collectible"
+            );
+
+
+          crystals.forEach(
+            (crystal) => {
+
+
+              if (
+                crystal.getAttribute(
+                  "visible"
+                ) === false
+              ) {
+                return;
+              }
+
+
+              const crystalPosition =
+                crystal.object3D.position;
+
+
+              const distance =
+                position.distanceTo(
+                  crystalPosition
+                );
+
+
+              if (distance < 1.2) {
+
+
+                collectCrystal(crystal);
+
+
+              }
+
+
+            }
+          );
+
+
+        }
+
+
+      }
+    );
+
+
+
+
+    /* ================================================
+       ENEMY CONTROLLER
+    ================================================= */
+
+
+    AFRAME.registerComponent(
+      "enemy-controller",
+      {
+
+
+        schema: {
+
+
+          speed: {
+            type: "number",
+            default: 0.015
+          }
+
+
+        },
+
+
+        init: function() {
+
+
+          this.direction = 1;
+
+
+          this.changeDirectionTimer = 0;
+
+
+        },
+
+
+        tick: function(time, deltaTime) {
+
+
+          if (!gameRunning) return;
+
+
+          const enemy =
+            this.el.object3D.position;
+
+
+          const player =
+            document
+              .getElementById("player")
+              .object3D
+              .position;
+
+
+          /* Move enemy toward player */
+
+
+          const dx =
+            player.x - enemy.x;
+
+
+          const dz =
+            player.z - enemy.z;
+
+
+          const distance =
+            Math.sqrt(
+              dx * dx + dz * dz
+            );
+
+
+          if (distance > 1.5) {
+
+
+            enemy.x +=
+              (dx / distance) *
+              this.data.speed;
+
+
+            enemy.z +=
+              (dz / distance) *
+              this.data.speed;
+
+
+          }
+
+
+          /* Enemy-player collision */
+
+
+          if (distance < 1.3) {
+
+
+            damagePlayer();
+
+
+            /* Push enemy away */
+
+
+            enemy.x -=
+              (dx / distance) * 1.5;
+
+
+            enemy.z -=
+              (dz / distance) * 1.5;
+
+
+          }
+
+
+        }
+
+
+      }
+    );
+
+
+
+
+    /* ================================================
+       CRYSTAL ANIMATION
+    ================================================= */
+
+
+    document.addEventListener(
+      "DOMContentLoaded",
+      function() {
+
+
+        const crystals =
+          document.querySelectorAll(
+            ".collectible"
+          );
+
+
+        crystals.forEach(
+          (crystal, index) => {
+
+
+            crystal.setAttribute(
+              "animation__rotate",
+              `
+                property: rotation;
+                to: 0 360 0;
+                loop: true;
+                dur: ${1500 + index * 100}
+              `
+            );
+
+
+            crystal.setAttribute(
+              "animation__float",
+              `
+                property: position;
+                dir: alternate;
+                loop: true;
+                dur: 1000;
+                to: ${
+                  crystal.object3D.position.x
+                } 1.5 ${
+                  crystal.object3D.position.z
+                }
+              `
+            );
+
+
+          }
+        );
+
+
+      }
+    );
+
+
+
+
+    /* ================================================
+       RESTART GAME
+    ================================================= */
+
+
+    function restartGame() {
+
+
+      score = 0;
+
+
+      health = 3;
+
+
+      collected = 0;
+
+
+      timeLeft = 60;
+
+
+      gameRunning = true;
+
+
+      updateHUD();
+
+
+      message.style.display = "none";
+
+
+      /* Reset player */
+
+
+      const player =
+        document.getElementById("player");
+
+
+      player.object3D.position.set(
+        0,
+        0,
+        8
+      );
+
+
+      /* Reset crystals */
+
+
+      const crystals =
+        document.querySelectorAll(
+          ".collectible"
+        );
+
+
+      crystals.forEach(
+        crystal => {
+
+
+          crystal.setAttribute(
+            "visible",
+            true
+          );
+
+
+        }
+      );
+
+
+      /* Reset enemies */
+
+
+      const enemies =
+        document.querySelectorAll(
+          ".enemy"
+        );
+
+
+      const positions = [
+
+
+        [-8, 0.6, -2],
+
+
+        [8, 0.6, -6],
+
+
+        [-10, 0.6, 10]
+
+
+      ];
+
+
+      enemies.forEach(
+        (enemy, index) => {
+
+
+          enemy.object3D.position.set(
+            positions[index][0],
+            positions[index][1],
+            positions[index][2]
+          );
+
+
+        }
+      );
+
+
+    }
+
+
+
+
+    /* ================================================
+       MOBILE CONTROLS
+    ================================================= */
+
+
+    function setupMobileButton(
+      id,
+      key
+    ) {
+
+
+      const button =
+        document.getElementById(id);
+
+
+      button.addEventListener(
+        "touchstart",
+        function(event) {
+
+
+          event.preventDefault();
+
+
+          window.dispatchEvent(
+            new KeyboardEvent(
+              "keydown",
+              {
+                key: key
+              }
+            )
+          );
+
+
+        }
+      );
+
+
+      button.addEventListener(
+        "touchend",
+        function(event) {
+
+
+          event.preventDefault();
+
+
+          window.dispatchEvent(
+            new KeyboardEvent(
+              "keyup",
+              {
+                key: key
+              }
+            )
+          );
+
+
+        }
+      );
+
+
+    }
+
+
+
+
+    setupMobileButton(
+      "up",
+      "w"
+    );
+
+
+    setupMobileButton(
+      "down",
+      "s"
+    );
+
+
+    setupMobileButton(
+      "left",
+      "a"
+    );
+
+
+    setupMobileButton(
+      "right",
+      "d"
+    );
+
+
+
+
+    /* ================================================
+       INITIAL HUD
+    ================================================= */
+
+
+    updateHUD();
+
+
+  </script>
+
+
+</body>
+</html>

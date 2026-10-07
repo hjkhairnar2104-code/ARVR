@@ -1,0 +1,2224 @@
+ <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>VR Hoops Arena - 1v1 Real Game vs AI Defender</title>
+  <meta name="description" content="Dynamic single-player VR Basketball Game with active AI defenders contesting and blocking shots, pump-fakes, ankle breakers, 3D Jumbotron, audio and WebXR controls.">
+
+  <!-- A-Frame 1.7.0 -->
+  <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
+
+  <!-- Google Fonts for sleek scoreboard aesthetics -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@600;700;800&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Inter', sans-serif;
+      background-color: #060913;
+    }
+
+    /* 2D HUD OVERLAY */
+    #hud-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 16px 20px;
+    }
+
+    /* TOP BAR - SCORECARD & STATS */
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 15px;
+      flex-wrap: wrap;
+    }
+
+    .glass-panel {
+      background: rgba(10, 15, 30, 0.85);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 14px;
+      padding: 12px 22px;
+      color: #fff;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.65);
+      pointer-events: auto;
+    }
+
+    .scorecard-display {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .stat-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .stat-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: #94a3b8;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+      margin-bottom: 2px;
+    }
+
+    .stat-val {
+      font-family: 'Orbitron', monospace;
+      font-size: 26px;
+      font-weight: 700;
+      color: #38bdf8;
+      text-shadow: 0 0 12px rgba(56, 189, 248, 0.6);
+      min-width: 45px;
+      text-align: center;
+      transition: transform 0.15s ease;
+    }
+
+    .stat-val.score {
+      color: #f59e0b;
+      font-size: 34px;
+      text-shadow: 0 0 16px rgba(245, 158, 11, 0.8);
+    }
+
+    .stat-val.timer {
+      color: #ef4444;
+      text-shadow: 0 0 15px rgba(239, 68, 68, 0.7);
+    }
+
+    .stat-val.streak {
+      color: #10b981;
+      text-shadow: 0 0 12px rgba(16, 185, 129, 0.6);
+    }
+
+    /* DEFENDER CONTEST INDICATOR */
+    #contest-badge {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 13px;
+      font-weight: 800;
+      padding: 5px 12px;
+      border-radius: 20px;
+      background: rgba(34, 197, 94, 0.2);
+      border: 1px solid #22c55e;
+      color: #22c55e;
+      letter-spacing: 1px;
+      transition: all 0.25s ease;
+      white-space: nowrap;
+    }
+
+    #contest-badge.contested {
+      background: rgba(245, 158, 11, 0.25);
+      border-color: #f59e0b;
+      color: #fbbf24;
+    }
+
+    #contest-badge.smothered {
+      background: rgba(239, 68, 68, 0.35);
+      border-color: #ef4444;
+      color: #ef4444;
+      animation: flash-red 0.5s infinite alternate;
+    }
+
+    @keyframes flash-red {
+      from { transform: scale(1); box-shadow: 0 0 5px #ef4444; }
+      to { transform: scale(1.06); box-shadow: 0 0 15px #ef4444; }
+    }
+
+    /* RIGHT ACTIONS PANEL */
+    .action-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .btn {
+      background: linear-gradient(135deg, #1e293b, #0f172a);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #e2e8f0;
+      padding: 9px 16px;
+      border-radius: 8px;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+      pointer-events: auto;
+    }
+
+    .btn:hover {
+      background: linear-gradient(135deg, #334155, #1e293b);
+      border-color: #38bdf8;
+      color: #fff;
+      box-shadow: 0 0 14px rgba(56, 189, 248, 0.4);
+      transform: translateY(-1px);
+    }
+
+    .btn:active {
+      transform: translateY(1px);
+    }
+
+    .btn.primary {
+      background: linear-gradient(135deg, #ea580c, #c2410c);
+      border-color: #f97316;
+      color: white;
+      box-shadow: 0 4px 15px rgba(234, 88, 12, 0.5);
+    }
+
+    .btn.primary:hover {
+      background: linear-gradient(135deg, #f97316, #ea580c);
+      box-shadow: 0 6px 22px rgba(249, 115, 22, 0.7);
+    }
+
+    /* PROMINENT MAIN SHOOT & PUMP-FAKE BUTTONS */
+    .center-shoot-container {
+      position: fixed;
+      bottom: 22px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      pointer-events: auto;
+      z-index: 1500;
+    }
+
+    .controls-btn-group {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .big-shoot-btn {
+      background: linear-gradient(135deg, #f97316 0%, #ea580c 50%, #c2410c 100%);
+      border: 3px solid #ffedd5;
+      color: white;
+      padding: 16px 38px;
+      border-radius: 40px;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 19px;
+      font-weight: 900;
+      letter-spacing: 1.5px;
+      cursor: pointer;
+      box-shadow: 0 10px 30px rgba(234, 88, 12, 0.7), 0 0 20px rgba(249, 115, 22, 0.5);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      transition: all 0.15s ease;
+      animation: pulse-shoot 2s infinite alternate;
+    }
+
+    @keyframes pulse-shoot {
+      0% { transform: scale(1); box-shadow: 0 8px 25px rgba(234, 88, 12, 0.6); }
+      100% { transform: scale(1.03); box-shadow: 0 12px 35px rgba(249, 115, 22, 0.85); }
+    }
+
+    .big-shoot-btn:hover {
+      transform: scale(1.06) translateY(-2px);
+      background: linear-gradient(135deg, #fb923c, #ea580c);
+      box-shadow: 0 14px 40px rgba(249, 115, 22, 0.9);
+    }
+
+    .big-shoot-btn:active, .big-shoot-btn.charging {
+      transform: scale(0.97) translateY(2px);
+      background: linear-gradient(135deg, #10b981, #059669);
+      border-color: #6ee7b7;
+      box-shadow: 0 0 25px rgba(16, 185, 129, 0.8);
+    }
+
+    .pump-fake-btn {
+      background: linear-gradient(135deg, #4f46e5, #3730a3);
+      border: 2px solid #818cf8;
+      color: white;
+      padding: 14px 22px;
+      border-radius: 30px;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 15px;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 6px 20px rgba(79, 70, 229, 0.5);
+      transition: all 0.2s;
+    }
+
+    .pump-fake-btn:hover {
+      background: linear-gradient(135deg, #6366f1, #4f46e5);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(99, 102, 241, 0.7);
+    }
+
+    /* POWER METER HUD */
+    #power-meter-container {
+      width: 340px;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 6px;
+    }
+
+    .power-label {
+      font-family: 'Orbitron', monospace;
+      font-size: 13px;
+      font-weight: 700;
+      color: #fbbf24;
+      text-shadow: 0 0 8px rgba(251, 191, 36, 0.7);
+      letter-spacing: 1px;
+    }
+
+    .power-bar-bg {
+      width: 100%;
+      height: 20px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 2px solid rgba(255, 255, 255, 0.35);
+      border-radius: 10px;
+      overflow: hidden;
+      position: relative;
+      box-shadow: 0 0 15px rgba(0, 0, 0, 0.7);
+    }
+
+    .sweet-spot {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 70%;
+      width: 18%;
+      background: rgba(34, 197, 94, 0.55);
+      border-left: 2px dashed #22c55e;
+      border-right: 2px dashed #22c55e;
+    }
+
+    #power-bar-fill {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, #38bdf8 0%, #fbbf24 65%, #22c55e 80%, #ef4444 100%);
+      border-radius: 8px;
+    }
+
+    /* BOTTOM CONTROLS & SPOTS */
+    .bottom-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 20px;
+      margin-bottom: 95px;
+    }
+
+    .spot-selector {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(10px);
+      padding: 8px 14px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      pointer-events: auto;
+    }
+
+    .spot-btn {
+      padding: 7px 12px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #94a3b8;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .spot-btn:hover, .spot-btn.active {
+      background: #f97316;
+      color: #fff;
+      border-color: #ea580c;
+      box-shadow: 0 0 12px rgba(249, 115, 22, 0.6);
+    }
+
+    .instructions-hint {
+      background: rgba(15, 23, 42, 0.8);
+      backdrop-filter: blur(8px);
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 13px;
+      color: #cbd5e1;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      text-align: center;
+      pointer-events: auto;
+    }
+
+    .instructions-hint kbd {
+      background: #334155;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-family: monospace;
+      color: #38bdf8;
+      border: 1px solid #475569;
+    }
+
+    /* GIANT SHOT FEEDBACK POPUP */
+    #shot-feedback {
+      position: fixed;
+      top: 30%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0.5);
+      font-family: 'Orbitron', sans-serif;
+      font-size: 48px;
+      font-weight: 900;
+      color: #fbbf24;
+      text-shadow: 0 0 30px rgba(251, 191, 36, 0.9), 3px 3px 0 #000;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 2000;
+      transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    #shot-feedback.show {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1.25);
+    }
+
+    #shot-feedback.blocked {
+      color: #ef4444;
+      text-shadow: 0 0 35px rgba(239, 68, 68, 0.95), 3px 3px 0 #000;
+    }
+
+    /* GAME OVER MODAL */
+    #gameover-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(5, 7, 15, 0.9);
+      backdrop-filter: blur(14px);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 3000;
+    }
+
+    .gameover-card {
+      background: linear-gradient(145deg, #111827, #0b0f19);
+      border: 2px solid rgba(249, 115, 22, 0.6);
+      border-radius: 20px;
+      padding: 35px 45px;
+      text-align: center;
+      color: #fff;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.85), 0 0 35px rgba(249, 115, 22, 0.3);
+      max-width: 460px;
+      width: 90%;
+      animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    @keyframes popIn {
+      from { transform: scale(0.8); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .gameover-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 34px;
+      font-weight: 900;
+      color: #f97316;
+      margin-bottom: 5px;
+      letter-spacing: 2px;
+    }
+
+    .gameover-subtitle {
+      color: #94a3b8;
+      font-size: 14px;
+      margin-bottom: 25px;
+    }
+
+    .final-score-box {
+      background: rgba(0, 0, 0, 0.45);
+      border-radius: 14px;
+      padding: 18px;
+      margin-bottom: 22px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .final-score-val {
+      font-family: 'Orbitron', monospace;
+      font-size: 56px;
+      font-weight: 900;
+      color: #38bdf8;
+      text-shadow: 0 0 25px rgba(56, 189, 248, 0.7);
+    }
+
+    .score-breakdown {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 25px;
+      text-align: left;
+    }
+
+    .breakdown-row {
+      background: rgba(255, 255, 255, 0.05);
+      padding: 10px 14px;
+      border-radius: 8px;
+    }
+
+    .breakdown-label {
+      font-size: 11px;
+      color: #94a3b8;
+      text-transform: uppercase;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+    }
+
+    .breakdown-val {
+      font-family: 'Orbitron', monospace;
+      font-size: 19px;
+      color: #fff;
+      font-weight: 700;
+    }
+
+    /* DRAG TO SHOOT OVERLAY */
+    #drag-shoot-layer {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 50;
+      cursor: grab;
+      touch-action: none;
+    }
+    #drag-shoot-layer:active {
+      cursor: grabbing;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- INVISIBLE DRAG / FLICK INTERACTION LAYER -->
+  <div id="drag-shoot-layer"></div>
+
+  <!-- 2D HUD OVERLAY -->
+  <div id="hud-container">
+    <!-- TOP BAR -->
+    <div class="top-bar">
+      <!-- SCORECARD -->
+      <div class="glass-panel scorecard-display">
+        <div class="stat-item">
+          <span class="stat-label">SCORE</span>
+          <span class="stat-val score" id="hud-score">0</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">TIME</span>
+          <span class="stat-val timer" id="hud-time">60</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">STREAK</span>
+          <span class="stat-val streak" id="hud-streak">0</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">SHOTS (M/A)</span>
+          <span class="stat-val" id="hud-shots">0/0</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">BLOCKS</span>
+          <span class="stat-val" style="color:#ef4444;" id="hud-blocks">0</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">DEFENSE</span>
+          <span id="contest-badge">WIDE OPEN</span>
+        </div>
+      </div>
+
+      <!-- RIGHT ACTIONS -->
+      <div class="action-panel">
+        <button class="btn primary" id="btn-difficulty">
+          <span>🛡️</span> DEFENDER: PRO
+        </button>
+        <button class="btn" id="btn-reset-ball">
+          <span>🔄</span> RESET BALL [R]
+        </button>
+        <button class="btn" id="btn-mode">
+          <span>⏱️</span> MODE: 60s 1v1
+        </button>
+        <button class="btn" id="btn-aim-guide">
+          <span>🎯</span> AIM ARC: ON
+        </button>
+      </div>
+    </div>
+
+    <!-- BOTTOM BAR (SPOTS & INSTRUCTIONS) -->
+    <div class="bottom-bar">
+      <!-- SHOOTING SPOT SELECTOR -->
+      <div class="spot-selector">
+        <span style="font-size:12px; font-weight:700; color:#cbd5e1; margin-right:4px;">MOVE TO:</span>
+        <button class="spot-btn active" data-spot="freethrow">Free Throw [1]</button>
+        <button class="spot-btn" data-spot="paint">Paint / Close [2]</button>
+        <button class="spot-btn" data-spot="topkey">Top 3PT [3]</button>
+        <button class="spot-btn" data-spot="leftwing">Left 3PT [4]</button>
+        <button class="spot-btn" data-spot="rightwing">Right 3PT [5]</button>
+      </div>
+
+      <!-- INSTRUCTIONS -->
+      <div class="instructions-hint">
+        <b>Tips:</b> Use <kbd>PUMP FAKE [F]</kbd> to make the defender jump, then take the open shot! | <kbd>WASD</kbd> Move | <kbd>SPACE</kbd> Shoot
+      </div>
+    </div>
+  </div>
+
+  <!-- PROMINENT CENTER SHOOT BUTTONS -->
+  <div class="center-shoot-container">
+    <!-- POWER METER -->
+    <div id="power-meter-container">
+      <div class="power-label" id="power-text">HOLD TO CHARGE POWER: 0%</div>
+      <div class="power-bar-bg">
+        <div class="sweet-spot"></div>
+        <div id="power-bar-fill"></div>
+      </div>
+    </div>
+
+    <div class="controls-btn-group">
+      <button class="pump-fake-btn" id="btn-pump-fake">
+        <span>💨</span> PUMP FAKE [F]
+      </button>
+      <button class="big-shoot-btn" id="big-shoot-btn">
+        <span>🏀</span> SHOOT BALL [SPACE]
+      </button>
+    </div>
+  </div>
+
+  <!-- POPUP FEEDBACK -->
+  <div id="shot-feedback">🏀 IT'S IN! +2 PTS</div>
+
+  <!-- GAME OVER SUMMARY MODAL -->
+  <div id="gameover-modal">
+    <div class="gameover-card">
+      <div class="gameover-title">FINAL BUZZER!</div>
+      <div class="gameover-subtitle">1v1 Showdown Scorecard</div>
+
+      <div class="final-score-box">
+        <div class="stat-label">YOUR FINAL SCORE</div>
+        <div class="final-score-val" id="final-score">0</div>
+        <div id="final-rank" style="color: #fbbf24; font-weight: 700; font-size: 16px; margin-top: 5px;">RANK: ALL-STAR</div>
+      </div>
+
+      <div class="score-breakdown">
+        <div class="breakdown-row">
+          <div class="breakdown-label">Baskets Made</div>
+          <div class="breakdown-val" id="final-made">0</div>
+        </div>
+        <div class="breakdown-row">
+          <div class="breakdown-label">Total Attempts</div>
+          <div class="breakdown-val" id="final-attempts">0</div>
+        </div>
+        <div class="breakdown-row">
+          <div class="breakdown-label">Times Blocked</div>
+          <div class="breakdown-val" style="color:#ef4444;" id="final-blocked">0</div>
+        </div>
+        <div class="breakdown-row">
+          <div class="breakdown-label">Max Streak</div>
+          <div class="breakdown-val" id="final-streak">0</div>
+        </div>
+      </div>
+
+      <button class="btn primary" id="btn-restart" style="width: 100%; justify-content: center; padding: 14px; font-size: 16px;">
+        <span>🔥</span> PLAY AGAIN
+      </button>
+    </div>
+  </div>
+
+  <!-- A-FRAME 3D SCENE -->
+  <a-scene
+    vr-mode-ui="enabled: true"
+    renderer="antialias: true; colorManagement: true; highRefreshRate: true;"
+    background="color: #060913"
+    fog="type: exponential; color: #070b16; density: 0.012">
+
+    <!-- LIGHTING SETUP -->
+    <a-entity light="type: ambient; color: #3b4252; intensity: 0.9;"></a-entity>
+    <!-- Main Arena Overhead Spotlights -->
+    <a-entity light="type: directional; color: #ffffff; intensity: 1.2; position: 0 25 -10;"></a-entity>
+    <a-entity light="type: directional; color: #38bdf8; intensity: 0.5; position: -15 15 5;"></a-entity>
+    <a-entity light="type: directional; color: #f97316; intensity: 0.5; position: 15 15 5;"></a-entity>
+    <!-- Focused Spotlight on Rim -->
+    <a-entity light="type: spot; color: #fed7aa; intensity: 2.5; angle: 45; penumbra: 0.4; position: 0 8.5 -4.5; target: #hoop-target;"></a-entity>
+    <a-entity id="hoop-target" position="0 3.05 -7.15"></a-entity>
+
+    <!-- PLAYER RIG & CAMERA -->
+    <a-entity id="player-rig" position="0 0 0">
+      <a-camera id="head-camera" position="0 1.65 0" look-controls="pointerLockEnabled: false" wasd-controls="acceleration: 20">
+        <!-- Reticle cursor for desktop clicking -->
+        <a-cursor
+          id="camera-cursor"
+          position="0 0 -1"
+          geometry="primitive: ring; radiusInner: 0.008; radiusOuter: 0.014"
+          material="color: #38bdf8; shader: flat; opacity: 0.8"
+          animation__click="property: scale; startEvents: click; easing: easeInCubic; dur: 120; from: 0.1 0.1 0.1; to: 1 1 1"
+          raycaster="objects: .clickable">
+        </a-cursor>
+
+        <!-- FIRST-PERSON HELD BASKETBALL (Guaranteed 100% visible on screen!) -->
+        <a-entity id="held-ball-anchor" position="0.22 -0.28 -0.65" rotation="10 -15 0">
+          <a-sphere id="held-ball-mesh"
+                    radius="0.13"
+                    color="#ea580c"
+                    material="roughness: 0.6; metalness: 0.1; shader: standard"
+                    animation__bob="property: position; to: 0.22 -0.26 -0.65; dir: alternate; loop: true; dur: 800; easing: easeInOutSine">
+          </a-sphere>
+        </a-entity>
+      </a-camera>
+
+      <!-- VR CONTROLLERS WITH TRACKED INTERACTION -->
+      <a-entity id="left-controller"
+                oculus-touch-controls="hand: left"
+                laser-controls="hand: left"
+                raycaster="objects: .clickable; far: 6">
+      </a-entity>
+
+      <a-entity id="right-controller"
+                oculus-touch-controls="hand: right"
+                laser-controls="hand: right"
+                raycaster="objects: .clickable; far: 6">
+      </a-entity>
+    </a-entity>
+
+    <!-- IN-FLIGHT WORLD BASKETBALL (Visible when thrown) -->
+    <a-sphere id="flying-basketball"
+              position="0 -10 0"
+              radius="0.13"
+              color="#ea580c"
+              material="roughness: 0.6; metalness: 0.1; shader: standard"
+              visible="false"
+              shadow="cast: true">
+    </a-sphere>
+
+    <!-- =====================================================================
+         REAL 3D AI OPPONENT DEFENDER ("MARCUS #23" - RIVAL LOCKDOWN DEFENDER)
+         ===================================================================== -->
+    <a-entity id="opponent-defender" position="0 0 -2.6">
+      <!-- Player Name Banner above Head -->
+      <a-entity position="0 2.25 0" text="value: DEFENDER MARCUS #23; align: center; color: #ef4444; width: 3.5; font: exo2bold"></a-entity>
+
+      <!-- DEFENDER BODY HIERARCHY -->
+      <a-entity id="defender-body">
+        <!-- Head with Headband -->
+        <a-sphere id="def-head" position="0 1.85 0" radius="0.14" color="#8d5524"></a-sphere>
+        <!-- Red/Black Headband -->
+        <a-torus position="0 1.9 0" rotation="90 0 0" radius="0.145" radius-tubular="0.02" color="#dc2626"></a-torus>
+        <!-- Hair -->
+        <a-sphere position="0 1.94 -0.02" radius="0.125" color="#18181b"></a-sphere>
+
+        <!-- Torso with Crimson Rival Jersey #23 -->
+        <a-box id="def-torso" position="0 1.35 0" width="0.48" height="0.65" depth="0.26" color="#b91c1c"></a-box>
+        <!-- Jersey Number #23 (Front & Back) -->
+        <a-entity position="0 1.36 0.14" text="value: 23; align: center; color: #ffffff; width: 1.8; font: exo2bold"></a-entity>
+        <a-entity position="0 1.36 -0.14" rotation="0 180 0" text="value: RIVAL\n23; align: center; color: #ffffff; width: 1.6; font: exo2bold"></a-entity>
+
+        <!-- Left Arm & Hand (Raises high to contest/block) -->
+        <a-entity id="def-left-arm" position="-0.32 1.55 0">
+          <a-cylinder position="0 -0.22 0" radius="0.055" height="0.42" color="#8d5524"></a-cylinder>
+          <!-- Left Hand / Blocking Glove Sphere -->
+          <a-sphere id="def-left-hand" position="0 -0.45 0" radius="0.11" color="#8d5524"></a-sphere>
+          <!-- Wristband -->
+          <a-torus position="0 -0.4 0" rotation="90 0 0" radius="0.065" radius-tubular="0.015" color="#dc2626"></a-torus>
+        </a-entity>
+
+        <!-- Right Arm & Hand (Raises high to contest/block) -->
+        <a-entity id="def-right-arm" position="0.32 1.55 0">
+          <a-cylinder position="0 -0.22 0" radius="0.055" height="0.42" color="#8d5524"></a-cylinder>
+          <!-- Right Hand / Blocking Glove Sphere -->
+          <a-sphere id="def-right-hand" position="0 -0.45 0" radius="0.11" color="#8d5524"></a-sphere>
+          <!-- Wristband -->
+          <a-torus position="0 -0.4 0" rotation="90 0 0" radius="0.065" radius-tubular="0.015" color="#dc2626"></a-torus>
+        </a-entity>
+
+        <!-- Basketball Shorts -->
+        <a-box position="0 0.88 0" width="0.46" height="0.36" depth="0.27" color="#991b1b"></a-box>
+
+        <!-- Left Leg & Sneaker -->
+        <a-entity id="def-left-leg" position="-0.15 0.5 0">
+          <a-cylinder position="0 -0.18 0" radius="0.065" height="0.46" color="#8d5524"></a-cylinder>
+          <a-cylinder position="0 -0.38 0" radius="0.07" height="0.14" color="#ffffff"></a-cylinder> <!-- Sock -->
+          <a-box position="0 -0.47 0.06" width="0.12" height="0.1" depth="0.22" color="#18181b"></a-box> <!-- Sneaker -->
+        </a-entity>
+
+        <!-- Right Leg & Sneaker -->
+        <a-entity id="def-right-leg" position="0.15 0.5 0">
+          <a-cylinder position="0 -0.18 0" radius="0.065" height="0.46" color="#8d5524"></a-cylinder>
+          <a-cylinder position="0 -0.38 0" radius="0.07" height="0.14" color="#ffffff"></a-cylinder> <!-- Sock -->
+          <a-box position="0 -0.47 0.06" width="0.12" height="0.1" depth="0.22" color="#18181b"></a-box> <!-- Sneaker -->
+        </a-entity>
+      </a-entity>
+    </a-entity>
+
+    <!-- TRAJECTORY ARC GUIDE -->
+    <a-entity id="trajectory-arc-container"></a-entity>
+
+    <!-- BASKETBALL COURT FLOOR -->
+    <a-plane id="court-floor"
+             rotation="-90 0 0"
+             width="28"
+             height="20"
+             position="0 0 -4"
+             color="#b4733c"
+             material="roughness: 0.35; metalness: 0.08;"
+             shadow="receive: true">
+    </a-plane>
+
+    <!-- SURROUNDING ARENA SLATE FLOOR -->
+    <a-plane rotation="-90 0 0" width="55" height="45" position="0 -0.02 -4" material="color: #0b0f19; roughness: 0.85; metalness: 0.2;"></a-plane>
+
+    <!-- ARENA BOUNDARY WALLS & LED SIDELINE BANNERS -->
+    <a-box id="led-back" position="0 1.2 -14.2" width="28.4" height="2.4" depth="0.4" color="#0a0f1e"></a-box>
+    <a-box id="led-left" position="-14.2 1.2 -4" rotation="0 90 0" width="20.4" height="2.4" depth="0.4" color="#0a0f1e"></a-box>
+    <a-box id="led-right" position="14.2 1.2 -4" rotation="0 -90 0" width="20.4" height="2.4" depth="0.4" color="#0a0f1e"></a-box>
+
+    <!-- STADIUM SEATING BLEACHERS (Background Ambiance) -->
+    <a-entity position="0 0 -17">
+      <a-box position="0 1.5 0" width="34" height="1" depth="3" material="color: #1e293b; roughness: 0.8;"></a-box>
+      <a-box position="0 2.5 -2" width="34" height="1" depth="3" material="color: #0f172a; roughness: 0.8;"></a-box>
+      <a-box position="0 3.5 -4" width="34" height="1" depth="3" material="color: #1e293b; roughness: 0.8;"></a-box>
+      <a-box position="0 4.5 -6" width="34" height="1" depth="3" material="color: #0f172a; roughness: 0.8;"></a-box>
+      <a-box position="0 10 -9" width="40" height="16" depth="0.5" material="color: #050811; roughness: 0.9;"></a-box>
+    </a-entity>
+
+    <!-- 3D FLOATING JUMBOTRON / SCOREBOARD ABOVE COURT -->
+    <a-entity id="jumbotron" position="0 6.5 -9.2" rotation="10 0 0">
+      <a-box width="5.8" height="2.8" depth="0.5" material="color: #050814; roughness: 0.2; metalness: 0.8;"></a-box>
+      <a-plane id="jumbotron-screen" position="0 0 0.26" width="5.6" height="2.6" material="shader: flat; color: #070b16;"></a-plane>
+      <a-cylinder position="-2.4 3 0" radius="0.03" height="6" material="color: #475569; metalness: 0.8;"></a-cylinder>
+      <a-cylinder position="2.4 3 0" radius="0.03" height="6" material="color: #475569; metalness: 0.8;"></a-cylinder>
+    </a-entity>
+
+    <!-- BASKETBALL HOOP & GOAL SYSTEM -->
+    <a-entity id="hoop-system" position="0 0 -7.15">
+      <!-- Main Support Pole -->
+      <a-cylinder position="0 2.2 -0.85" radius="0.12" height="4.4" material="color: #1e293b; metalness: 0.8; roughness: 0.3;"></a-cylinder>
+      <!-- Base Protective Safety Padding -->
+      <a-cylinder position="0 0.9 -0.85" radius="0.25" height="1.8" material="color: #0284c7; roughness: 0.6;"></a-cylinder>
+      <!-- Angled Support Arm Extending Forward -->
+      <a-cylinder position="0 3.3 -0.55" rotation="55 0 0" radius="0.07" height="1.0" material="color: #1e293b; metalness: 0.8;"></a-cylinder>
+      <a-cylinder position="0 3.35 -0.35" rotation="0 0 0" radius="0.07" height="0.4" material="color: #1e293b; metalness: 0.8;"></a-cylinder>
+
+      <!-- Backboard Bracket -->
+      <a-box position="0 3.35 -0.32" width="0.4" height="0.4" depth="0.08" material="color: #0f172a; metalness: 0.9;"></a-box>
+
+      <!-- BACKBOARD (Regulation 1.8m x 1.05m Glass) -->
+      <a-box id="backboard-mesh"
+             position="0 3.35 -0.3"
+             width="1.8"
+             height="1.05"
+             depth="0.04"
+             color="#ffffff"
+             material="transparent: true; opacity: 0.9; roughness: 0.1; metalness: 0.1;">
+      </a-box>
+
+      <!-- Backboard Glow Rim on Score -->
+      <a-box id="backboard-led" position="0 3.35 -0.28" width="1.84" height="1.09" depth="0.01" material="color: #ef4444; opacity: 0; shader: flat;"></a-box>
+
+      <!-- Rim Support Neck -->
+      <a-box position="0 3.05 -0.15" width="0.12" height="0.06" depth="0.26" material="color: #ea580c; metalness: 0.6; roughness: 0.4;"></a-box>
+
+      <!-- REGULATION ORANGE METAL RIM -->
+      <a-torus id="rim-mesh"
+               position="0 3.05 0"
+               rotation="90 0 0"
+               radius="0.23"
+               radius-tubular="0.016"
+               segments-tubular="32"
+               segments-radial="16"
+               color="#ea580c"
+               material="metalness: 0.7; roughness: 0.2;">
+      </a-torus>
+
+      <!-- BASKETBALL NET -->
+      <a-entity id="net-mesh" position="0 3.05 0">
+        <a-cone position="0 -0.22 0"
+                radius-top="0.225"
+                radius-bottom="0.13"
+                height="0.44"
+                open-ended="true"
+                segments-radial="20"
+                material="color: #ffffff; wireframe: true; wireframeLinewidth: 2; roughness: 0.9;">
+        </a-cone>
+        <a-torus position="0 -0.42 0" rotation="90 0 0" radius="0.13" radius-tubular="0.007" material="color: #ffffff; roughness: 0.9;"></a-torus>
+      </a-entity>
+    </a-entity>
+
+    <!-- BALL RACK BESIDE PLAYER -->
+    <a-entity id="ball-rack" position="-1.5 0 0">
+      <a-box position="0 0.5 0" width="0.6" height="1.0" depth="1.2" material="color: #1e293b; wireframe: true; wireframeLinewidth: 3;"></a-box>
+      <a-box position="0 0.05 0" width="0.7" height="0.1" depth="1.3" material="color: #0f172a;"></a-box>
+      <a-entity position="0 1.15 0" text="value: BALL RACK; align: center; color: #38bdf8; width: 2.2; font: exo2bold"></a-entity>
+      <a-sphere position="0 0.9 -0.3" radius="0.13" color="#ea580c"></a-sphere>
+      <a-sphere position="0 0.9 0.0" radius="0.13" color="#ea580c"></a-sphere>
+      <a-sphere position="0 0.9 0.3" radius="0.13" color="#ea580c"></a-sphere>
+    </a-entity>
+
+    <!-- FLOATING 3D POPUP SCORE PARTICLES -->
+    <a-entity id="particles-container" position="0 3.05 -7.15"></a-entity>
+    <a-entity id="world-popup-text" position="0 3.8 -7.15" text="value: ; align: center; color: #fbbf24; width: 6; font: exo2bold"></a-entity>
+
+    <!-- TELEPORT / SHOOTING SPOT PADS ON COURT -->
+    <a-cylinder class="clickable spot-pad" data-spot="freethrow" position="0 0.02 -1.2" radius="0.6" height="0.02" material="color: #f97316; opacity: 0.75; roughness: 0.8;"></a-cylinder>
+    <a-cylinder class="clickable spot-pad" data-spot="paint" position="0 0.02 -4.0" radius="0.6" height="0.02" material="color: #38bdf8; opacity: 0.75; roughness: 0.8;"></a-cylinder>
+    <a-cylinder class="clickable spot-pad" data-spot="topkey" position="0 0.02 0.8" radius="0.6" height="0.02" material="color: #a855f7; opacity: 0.75; roughness: 0.8;"></a-cylinder>
+    <a-cylinder class="clickable spot-pad" data-spot="leftwing" position="-5.2 0.02 -1.5" radius="0.6" height="0.02" material="color: #10b981; opacity: 0.75; roughness: 0.8;"></a-cylinder>
+    <a-cylinder class="clickable spot-pad" data-spot="rightwing" position="5.2 0.02 -1.5" radius="0.6" height="0.02" material="color: #10b981; opacity: 0.75; roughness: 0.8;"></a-cylinder>
+
+  </a-scene>
+
+  <!-- GAME LOGIC SCRIPT -->
+  <script>
+    /* ==========================================================================
+       1. SYNTHESIZED AUDIO & TAUNT ANNOUNCER
+       ========================================================================== */
+    class AudioSynthesizer {
+      constructor() {
+        this.ctx = null;
+      }
+
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          this.ctx = new AudioContext();
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+
+      playBounce(volume = 0.6) {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(160, now);
+        osc.frequency.exponentialRampToValueAtTime(38, now + 0.12);
+
+        gain.gain.setValueAtTime(volume * 0.85, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + 0.13);
+      }
+
+      playRimClank(volume = 0.8) {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc1 = this.ctx.createOscillator();
+        const osc2 = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc1.type = 'triangle';
+        osc1.frequency.setValueAtTime(1020, now);
+        osc1.frequency.exponentialRampToValueAtTime(650, now + 0.22);
+
+        osc2.type = 'sine';
+        osc2.frequency.setValueAtTime(1920, now);
+        osc2.frequency.exponentialRampToValueAtTime(1200, now + 0.15);
+
+        gain.gain.setValueAtTime(volume, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+
+        osc1.connect(gain);
+        osc2.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc1.start(now);
+        osc2.start(now);
+        osc1.stop(now + 0.23);
+        osc2.stop(now + 0.23);
+      }
+
+      playBlockSound() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        // Heavy slap / swat sound
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(260, now);
+        osc.frequency.exponentialRampToValueAtTime(45, now + 0.18);
+
+        gain.gain.setValueAtTime(1.0, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + 0.19);
+      }
+
+      playWhistle() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(2800, now);
+        osc.frequency.setValueAtTime(3200, now + 0.08);
+        osc.frequency.setValueAtTime(2800, now + 0.16);
+
+        gain.gain.setValueAtTime(0.5, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + 0.36);
+      }
+
+      playSwish() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const bufferSize = this.ctx.sampleRate * 0.3;
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = Math.random() * 2 - 1;
+        }
+
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = buffer;
+
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(2400, now);
+        filter.frequency.linearRampToValueAtTime(800, now + 0.26);
+        filter.Q.value = 4.0;
+
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(0.9, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        noise.start(now);
+        noise.stop(now + 0.29);
+      }
+
+      playCheer() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const bufferSize = this.ctx.sampleRate * 1.2;
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (this.ctx.sampleRate * 0.6));
+        }
+
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = buffer;
+
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(1500, now);
+
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(0.6, now);
+        gain.gain.linearRampToValueAtTime(0.8, now + 0.25);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 1.15);
+
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        noise.start(now);
+        noise.stop(now + 1.2);
+      }
+
+      playBuzzer() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(110, now);
+
+        gain.gain.setValueAtTime(0.7, now);
+        gain.gain.setValueAtTime(0.7, now + 0.7);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.85);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + 0.86);
+      }
+
+      speakTaunt(text) {
+        if ('speechSynthesis' in window) {
+          try {
+            window.speechSynthesis.cancel();
+            const utt = new SpeechSynthesisUtterance(text);
+            utt.rate = 1.1;
+            utt.pitch = 0.9;
+            window.speechSynthesis.speak(utt);
+          } catch(e) {}
+        }
+      }
+    }
+
+    const audio = new AudioSynthesizer();
+    window.addEventListener('click', () => audio.init(), { once: true });
+    window.addEventListener('keydown', () => audio.init(), { once: true });
+    window.addEventListener('touchstart', () => audio.init(), { once: true });
+
+    /* ==========================================================================
+       2. PROCEDURAL TEXTURES VIA DIRECT THREE.JS CANVASTEXTURE INJECTION
+       ========================================================================== */
+    function applyDirectCanvasTextures() {
+      // 1. COURT HARDWOOD
+      const courtCanvas = document.createElement('canvas');
+      courtCanvas.width = 1024;
+      courtCanvas.height = 1024;
+      const cCtx = courtCanvas.getContext('2d');
+      const cw = 1024, ch = 1024;
+
+      cCtx.fillStyle = '#b4733c';
+      cCtx.fillRect(0, 0, cw, ch);
+
+      cCtx.strokeStyle = 'rgba(90, 45, 10, 0.25)';
+      cCtx.lineWidth = 2;
+      for (let y = 0; y < ch; y += 24) {
+        cCtx.beginPath();
+        cCtx.moveTo(0, y);
+        cCtx.lineTo(cw, y);
+        cCtx.stroke();
+      }
+
+      const keyW = cw * 0.26;
+      const keyH = ch * 0.42;
+      const keyX = (cw - keyW) / 2;
+      const keyY = ch - keyH;
+
+      cCtx.fillStyle = '#0f274a';
+      cCtx.fillRect(keyX, keyY, keyW, keyH);
+
+      cCtx.strokeStyle = '#ffffff';
+      cCtx.lineWidth = 8;
+      cCtx.strokeRect(20, 20, cw - 40, ch - 40);
+      cCtx.strokeRect(keyX, keyY, keyW, keyH);
+
+      cCtx.beginPath();
+      cCtx.arc(cw / 2, keyY, keyW / 2, 0, Math.PI * 2);
+      cCtx.stroke();
+
+      const hoopY = ch - 120;
+      cCtx.beginPath();
+      cCtx.arc(cw / 2, hoopY, cw * 0.38, Math.PI, 0, false);
+      cCtx.stroke();
+
+      cCtx.fillStyle = '#f97316';
+      cCtx.font = 'bold 42px sans-serif';
+      cCtx.textAlign = 'center';
+      cCtx.fillText('★ VR HOOPS 1v1 ARENA ★', cw / 2, ch * 0.35);
+
+      const courtEl = document.getElementById('court-floor');
+      const applyCourt = () => {
+        const mesh = courtEl.getObject3D('mesh');
+        if (mesh) {
+          mesh.material.map = new THREE.CanvasTexture(courtCanvas);
+          mesh.material.needsUpdate = true;
+        }
+      };
+      if (courtEl.hasLoaded) applyCourt();
+      else courtEl.addEventListener('loaded', applyCourt);
+
+      // 2. BACKBOARD TARGET BOX
+      const bbCanvas = document.createElement('canvas');
+      bbCanvas.width = 512;
+      bbCanvas.height = 256;
+      const bCtx = bbCanvas.getContext('2d');
+      bCtx.fillStyle = 'rgba(235, 245, 255, 0.4)';
+      bCtx.fillRect(0, 0, 512, 256);
+      bCtx.strokeStyle = '#ffffff';
+      bCtx.lineWidth = 14;
+      bCtx.strokeRect(8, 8, 496, 240);
+      bCtx.strokeStyle = '#ea580c';
+      bCtx.lineWidth = 12;
+      bCtx.strokeRect(170, 115, 172, 115);
+
+      const bbEl = document.getElementById('backboard-mesh');
+      const applyBB = () => {
+        const mesh = bbEl.getObject3D('mesh');
+        if (mesh) {
+          mesh.material.map = new THREE.CanvasTexture(bbCanvas);
+          mesh.material.needsUpdate = true;
+        }
+      };
+      if (bbEl.hasLoaded) applyBB();
+      else bbEl.addEventListener('loaded', applyBB);
+
+      // 3. BASKETBALL LEATHER TEXTURE
+      const ballCanvas = document.createElement('canvas');
+      ballCanvas.width = 512;
+      ballCanvas.height = 256;
+      const blCtx = ballCanvas.getContext('2d');
+      blCtx.fillStyle = '#ea580c';
+      blCtx.fillRect(0, 0, 512, 256);
+      blCtx.strokeStyle = '#18181b';
+      blCtx.lineWidth = 12;
+      blCtx.beginPath();
+      blCtx.moveTo(0, 128); blCtx.lineTo(512, 128);
+      blCtx.moveTo(256, 0); blCtx.lineTo(256, 256);
+      blCtx.stroke();
+      blCtx.beginPath();
+      blCtx.arc(128, 128, 128, -Math.PI / 2, Math.PI / 2);
+      blCtx.arc(384, 128, 128, Math.PI / 2, -Math.PI / 2);
+      blCtx.stroke();
+
+      const applyBallTex = (el) => {
+        const mesh = el.getObject3D('mesh');
+        if (mesh) {
+          mesh.material.map = new THREE.CanvasTexture(ballCanvas);
+          mesh.material.needsUpdate = true;
+        }
+      };
+
+      const heldBall = document.getElementById('held-ball-mesh');
+      const flyBall = document.getElementById('flying-basketball');
+      heldBall.addEventListener('loaded', () => applyBallTex(heldBall));
+      flyBall.addEventListener('loaded', () => applyBallTex(flyBall));
+      if (heldBall.hasLoaded) applyBallTex(heldBall);
+      if (flyBall.hasLoaded) applyBallTex(flyBall);
+    }
+    window.addEventListener('DOMContentLoaded', applyDirectCanvasTextures);
+
+    /* ==========================================================================
+       3. 3D JUMBOTRON DIGITAL SCOREBOARD
+       ========================================================================== */
+    const jumbotronCanvas = document.createElement('canvas');
+    jumbotronCanvas.width = 1024;
+    jumbotronCanvas.height = 512;
+    let jumbotronTexture = null;
+
+    function renderJumbotron(score, time, streak, shotsMade, shotsTotal, blocks) {
+      const ctx = jumbotronCanvas.getContext('2d');
+      const w = 1024, h = 512;
+
+      ctx.fillStyle = '#070b16';
+      ctx.fillRect(0, 0, w, h);
+
+      // Top title
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(0, 0, w, 70);
+      ctx.fillStyle = '#38bdf8';
+      ctx.font = 'bold 36px Orbitron, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('1-ON-1 SHOWDOWN SCORECARD', w / 2, 48);
+
+      // Boxes
+      ctx.strokeStyle = '#1e293b';
+      ctx.lineWidth = 4;
+      ctx.strokeRect(30, 90, 440, 240);
+      ctx.strokeRect(550, 90, 440, 240);
+
+      // Score
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = 'bold 28px Rajdhani, sans-serif';
+      ctx.fillText('PLAYER PTS', 250, 135);
+      ctx.fillStyle = '#f59e0b';
+      ctx.font = '900 110px Orbitron, monospace';
+      ctx.fillText(score.toString().padStart(3, ' '), 250, 260);
+
+      // Time
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = 'bold 28px Rajdhani, sans-serif';
+      ctx.fillText('TIME REMAINING', 770, 135);
+      ctx.fillStyle = '#ef4444';
+      ctx.font = '900 110px Orbitron, monospace';
+      const mins = Math.floor(time / 60);
+      const secs = (time % 60).toString().padStart(2, '0');
+      ctx.fillText(`${mins}:${secs}`, 770, 260);
+
+      // Bottom bar
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(30, 360, w - 60, 120);
+
+      ctx.fillStyle = '#10b981';
+      ctx.font = 'bold 30px Orbitron, sans-serif';
+      ctx.fillText(`STREAK: ${streak}`, 170, 430);
+
+      ctx.fillStyle = '#38bdf8';
+      ctx.fillText(`SHOTS: ${shotsMade}/${shotsTotal}`, 480, 430);
+
+      ctx.fillStyle = '#ef4444';
+      ctx.fillText(`BLOCKS: ${blocks}`, 810, 430);
+
+      const screenEl = document.getElementById('jumbotron-screen');
+      if (screenEl && screenEl.getObject3D('mesh')) {
+        const mesh = screenEl.getObject3D('mesh');
+        if (!jumbotronTexture) {
+          jumbotronTexture = new THREE.CanvasTexture(jumbotronCanvas);
+          mesh.material.map = jumbotronTexture;
+        }
+        mesh.material.map.needsUpdate = true;
+      }
+    }
+
+    /* ==========================================================================
+       4. GAME STATE & STATS MANAGEMENT
+       ========================================================================== */
+    const GameState = {
+      score: 0,
+      timeRemaining: 60,
+      streak: 0,
+      maxStreak: 0,
+      shotsMade: 0,
+      shotsAttempted: 0,
+      timesBlocked: 0,
+      isTimerRunning: true,
+      mode: 'timed', // 'timed' or 'practice'
+      difficulty: 'pro', // 'rookie', 'pro', 'lockdown'
+      highScore: parseInt(localStorage.getItem('vr_hoops_highscore') || '0', 10),
+      currentSpot: 'freethrow',
+      isChargingPower: false,
+      powerValue: 25,
+      powerDirection: 1,
+      powerSpeed: 100,
+      showAimGuide: true
+    };
+
+    function updateHUD() {
+      document.getElementById('hud-score').textContent = GameState.score;
+      document.getElementById('hud-time').textContent = GameState.mode === 'timed' ? GameState.timeRemaining : '∞';
+      document.getElementById('hud-streak').textContent = GameState.streak;
+      document.getElementById('hud-shots').textContent = `${GameState.shotsMade}/${GameState.shotsAttempted}`;
+      document.getElementById('hud-blocks').textContent = GameState.timesBlocked;
+
+      renderJumbotron(
+        GameState.score,
+        GameState.timeRemaining,
+        GameState.streak,
+        GameState.shotsMade,
+        GameState.shotsAttempted,
+        GameState.timesBlocked
+      );
+    }
+
+    setInterval(() => {
+      if (GameState.mode === 'timed' && GameState.isTimerRunning && GameState.timeRemaining > 0) {
+        GameState.timeRemaining--;
+        updateHUD();
+        if (GameState.timeRemaining === 0) {
+          endGame();
+        }
+      }
+    }, 1000);
+
+    function endGame() {
+      GameState.isTimerRunning = false;
+      audio.playBuzzer();
+
+      if (GameState.score > GameState.highScore) {
+        GameState.highScore = GameState.score;
+        localStorage.setItem('vr_hoops_highscore', GameState.highScore.toString());
+      }
+      updateHUD();
+
+      document.getElementById('final-score').textContent = GameState.score;
+      document.getElementById('final-made').textContent = GameState.shotsMade;
+      document.getElementById('final-attempts').textContent = GameState.shotsAttempted;
+      document.getElementById('final-blocked').textContent = GameState.timesBlocked;
+      document.getElementById('final-streak').textContent = GameState.maxStreak;
+
+      let rank = 'ROOKIE';
+      if (GameState.score >= 45) rank = 'UNSTOPPABLE GOAT 👑';
+      else if (GameState.score >= 30) rank = 'CLUTCH ALL-STAR ⭐';
+      else if (GameState.score >= 18) rank = 'SHARPSHOOTER 🎯';
+      else if (GameState.score >= 10) rank = 'VARSITY STARTER 🔥';
+      document.getElementById('final-rank').textContent = `RANK: ${rank}`;
+
+      document.getElementById('gameover-modal').style.display = 'flex';
+    }
+
+    function restartGame() {
+      GameState.score = 0;
+      GameState.timeRemaining = 60;
+      GameState.streak = 0;
+      GameState.maxStreak = 0;
+      GameState.shotsMade = 0;
+      GameState.shotsAttempted = 0;
+      GameState.timesBlocked = 0;
+      GameState.isTimerRunning = true;
+      document.getElementById('gameover-modal').style.display = 'none';
+      resetBall();
+      updateHUD();
+    }
+    document.getElementById('btn-restart').addEventListener('click', restartGame);
+
+    /* ==========================================================================
+       5. ACTIVE AI OPPONENT DEFENDER ("MARCUS #23") LOGIC
+       ========================================================================== */
+    const DefenderAI = {
+      position: new THREE.Vector3(0, 0, -2.6),
+      targetPosition: new THREE.Vector3(0, 0, -2.6),
+      isJumping: false,
+      jumpVelocityY: 0,
+      jumpY: 0,
+      isFakedOut: false,
+      stumbleTimer: 0,
+      shufflePhase: 0,
+      contestLevel: 'WIDE OPEN', // 'WIDE OPEN', 'CONTESTED', 'SMOTHERED'
+
+      // Difficulty tuning
+      reactionSpeed: 3.2, // meters per second
+      jumpContestProbability: 0.85,
+      fakeSusceptibility: 0.65 // probability of biting on pump-fakes
+    };
+
+    const defenderEl = document.getElementById('opponent-defender');
+    const defBodyEl = document.getElementById('defender-body');
+    const defLeftArm = document.getElementById('def-left-arm');
+    const defRightArm = document.getElementById('def-right-arm');
+
+    function updateDefenderAI(dt) {
+      const playerPos = document.getElementById('player-rig').getAttribute('position');
+      const rimPos = BallPhysics.rimCenter;
+
+      // Desired guard position: directly between player and the hoop, ~1.8m in front of player
+      const dirToHoop = new THREE.Vector3(rimPos.x - playerPos.x, 0, rimPos.z - playerPos.z).normalize();
+      const idealGuardPos = new THREE.Vector3(
+        playerPos.x + dirToHoop.x * 1.85,
+        0,
+        playerPos.z + dirToHoop.z * 1.85
+      );
+
+      // Check distance from player to hoop
+      const playerDistToHoop = Math.hypot(rimPos.x - playerPos.x, rimPos.z - playerPos.z);
+      if (playerDistToHoop < 2.5) {
+        // If player is right under the basket, guard tighter
+        idealGuardPos.set(playerPos.x + dirToHoop.x * 1.0, 0, playerPos.z + dirToHoop.z * 1.0);
+      }
+
+      DefenderAI.targetPosition.copy(idealGuardPos);
+
+      // If stumbled by pump fake
+      if (DefenderAI.isFakedOut) {
+        DefenderAI.stumbleTimer -= dt;
+        if (DefenderAI.stumbleTimer <= 0) {
+          DefenderAI.isFakedOut = false;
+        }
+      } else {
+        // Move towards ideal guard position smoothly
+        const moveSpeed = (GameState.difficulty === 'lockdown' ? 4.2 : (GameState.difficulty === 'pro' ? 3.0 : 1.8));
+        DefenderAI.position.lerp(DefenderAI.targetPosition, Math.min(dt * moveSpeed, 1.0));
+      }
+
+      // Rotate defender to face the player directly
+      const angleToPlayer = Math.atan2(playerPos.x - DefenderAI.position.x, playerPos.z - DefenderAI.position.z);
+      const rotY = (angleToPlayer * 180 / Math.PI) + 180;
+
+      // Handle jumping contest physics
+      if (DefenderAI.isJumping) {
+        DefenderAI.jumpY += DefenderAI.jumpVelocityY * dt;
+        DefenderAI.jumpVelocityY -= 15.0 * dt; // gravity on jump
+
+        if (DefenderAI.jumpY <= 0) {
+          DefenderAI.jumpY = 0;
+          DefenderAI.isJumping = false;
+          DefenderAI.jumpVelocityY = 0;
+        }
+
+        // Raise arms vertically above head to contest/block
+        defLeftArm.setAttribute('rotation', '165 0 20');
+        defRightArm.setAttribute('rotation', '165 0 -20');
+      } else {
+        // Active defensive shuffle when on ground
+        DefenderAI.shufflePhase += dt * 5.0;
+        const armWave = Math.sin(DefenderAI.shufflePhase) * 25 + 45; // arms up in defensive stance
+        defLeftArm.setAttribute('rotation', `${armWave} 0 25`);
+        defRightArm.setAttribute('rotation', `${armWave} 0 -25`);
+
+        // Subtle lateral sway
+        const sway = Math.sin(DefenderAI.shufflePhase * 0.7) * 0.04;
+        defBodyEl.setAttribute('position', `${sway} 0 0`);
+      }
+
+      // Position the defender root entity
+      defenderEl.setAttribute('position', `${DefenderAI.position.x.toFixed(2)} ${DefenderAI.jumpY.toFixed(2)} ${DefenderAI.position.z.toFixed(2)}`);
+      defenderEl.setAttribute('rotation', `0 ${rotY.toFixed(1)} 0`);
+
+      // Calculate Shot Contest Level
+      const distToPlayer = Math.hypot(DefenderAI.position.x - playerPos.x, DefenderAI.position.z - playerPos.z);
+      const contestBadge = document.getElementById('contest-badge');
+
+      if (DefenderAI.isFakedOut) {
+        DefenderAI.contestLevel = 'WIDE OPEN (FAKED)';
+        contestBadge.className = '';
+        contestBadge.textContent = 'WIDE OPEN 🟢';
+      } else if (distToPlayer < 2.0 && DefenderAI.isJumping) {
+        DefenderAI.contestLevel = 'SMOTHERED';
+        contestBadge.className = 'smothered';
+        contestBadge.textContent = 'SMOTHERED 🔴';
+      } else if (distToPlayer < 2.4) {
+        DefenderAI.contestLevel = 'CONTESTED';
+        contestBadge.className = 'contested';
+        contestBadge.textContent = 'CONTESTED 🟡';
+      } else {
+        DefenderAI.contestLevel = 'WIDE OPEN';
+        contestBadge.className = '';
+        contestBadge.textContent = 'WIDE OPEN 🟢';
+      }
+    }
+
+    function triggerDefenderJump() {
+      if (!DefenderAI.isJumping && !DefenderAI.isFakedOut) {
+        DefenderAI.isJumping = true;
+        // Jump height ~ 1.2m
+        DefenderAI.jumpVelocityY = 5.2;
+      }
+    }
+
+    function performPumpFake() {
+      if (BallPhysics.isFreeInAir) return;
+      audio.init();
+
+      // Visual ball pump animation
+      const heldBall = document.getElementById('held-ball-anchor');
+      heldBall.setAttribute('animation__fake', 'property: position; to: 0.22 0.05 -0.55; dur: 150; dir: alternate; loop: 1; easing: easeOutQuad');
+
+      // AI Decision: does defender bite on pump fake?
+      const biteProb = (GameState.difficulty === 'rookie' ? 0.85 : (GameState.difficulty === 'pro' ? 0.65 : 0.45));
+      if (Math.random() < biteProb) {
+        // Defender bites! Jumps into the air early
+        triggerDefenderJump();
+        DefenderAI.isFakedOut = true;
+        DefenderAI.stumbleTimer = 1.6;
+
+        showFeedback('💨 DEFENDER BITES ON FAKE!', true);
+        audio.speakTaunt("Oh no, he got me!");
+      } else {
+        showFeedback('👀 DEFENDER STAYS DISCIPLINED!', false);
+      }
+    }
+
+    document.getElementById('btn-pump-fake').addEventListener('click', performPumpFake);
+
+    // Difficulty Toggle
+    const diffBtn = document.getElementById('btn-difficulty');
+    diffBtn.addEventListener('click', () => {
+      if (GameState.difficulty === 'rookie') {
+        GameState.difficulty = 'pro';
+        diffBtn.innerHTML = '<span>🛡️</span> DEFENDER: PRO';
+      } else if (GameState.difficulty === 'pro') {
+        GameState.difficulty = 'lockdown';
+        diffBtn.innerHTML = '<span>🔥</span> DEFENDER: LOCKDOWN';
+      } else {
+        GameState.difficulty = 'rookie';
+        diffBtn.innerHTML = '<span>🌱</span> DEFENDER: ROOKIE';
+      }
+    });
+
+    /* ==========================================================================
+       6. REAL-TIME BALL DUAL VISUALS & PHYSICS + SHOT BLOCKING
+       ========================================================================== */
+    const BallPhysics = {
+      position: new THREE.Vector3(0, 0, 0),
+      velocity: new THREE.Vector3(0, 0, 0),
+      isFreeInAir: false,
+      hasScoredThisShot: false,
+      isBlocked: false,
+      rimHitCount: 0,
+      shotOriginDistance: 0,
+      radius: 0.13,
+      gravity: -9.81,
+
+      rimCenter: new THREE.Vector3(0, 3.05, -7.15),
+      rimRadius: 0.23,
+      rimTubeRadius: 0.016,
+
+      bbCenter: new THREE.Vector3(0, 3.35, -7.45),
+      bbHalfW: 0.9,
+      bbHalfH: 0.525,
+      bbDepth: 0.04
+    };
+
+    const heldBallVisual = document.getElementById('held-ball-anchor');
+    const flyingBallMesh = document.getElementById('flying-basketball');
+
+    function resetBall() {
+      BallPhysics.isFreeInAir = false;
+      BallPhysics.hasScoredThisShot = false;
+      BallPhysics.isBlocked = false;
+      BallPhysics.rimHitCount = 0;
+      BallPhysics.velocity.set(0, 0, 0);
+
+      heldBallVisual.setAttribute('visible', 'true');
+      flyingBallMesh.setAttribute('visible', 'false');
+      flyingBallMesh.setAttribute('position', '0 -10 0');
+
+      updateTrajectoryArc();
+    }
+
+    // Dynamic Trajectory Arc Guide
+    const trajectoryContainer = document.getElementById('trajectory-arc-container');
+    const ARC_POINTS_COUNT = 18;
+    const arcDots = [];
+
+    for (let i = 0; i < ARC_POINTS_COUNT; i++) {
+      const dot = document.createElement('a-sphere');
+      dot.setAttribute('radius', '0.035');
+      dot.setAttribute('color', '#38bdf8');
+      dot.setAttribute('material', 'shader: flat; opacity: 0.75');
+      dot.setAttribute('position', '0 -10 0');
+      trajectoryContainer.appendChild(dot);
+      arcDots.push(dot);
+    }
+
+    function updateTrajectoryArc() {
+      if (!GameState.showAimGuide || BallPhysics.isFreeInAir) {
+        arcDots.forEach(d => d.setAttribute('visible', 'false'));
+        return;
+      }
+
+      const startPos = getHandBallWorldPosition();
+      const rim = BallPhysics.rimCenter;
+      const dx = rim.x - startPos.x;
+      const dz = rim.z - startPos.z;
+
+      const peakY = Math.max(rim.y + 1.2, 4.3);
+
+      for (let i = 0; i < ARC_POINTS_COUNT; i++) {
+        const t = (i + 1) / (ARC_POINTS_COUNT + 1);
+        const x = startPos.x + dx * t;
+        const z = startPos.z + dz * t;
+        const y = (1 - t) * startPos.y + t * rim.y + 4 * (peakY - (startPos.y + rim.y) / 2) * t * (1 - t);
+
+        arcDots[i].setAttribute('position', `${x.toFixed(2)} ${y.toFixed(2)} ${z.toFixed(2)}`);
+        arcDots[i].setAttribute('visible', 'true');
+
+        if (t > 0.7) {
+          arcDots[i].setAttribute('color', '#fbbf24');
+        } else {
+          arcDots[i].setAttribute('color', '#38bdf8');
+        }
+      }
+    }
+
+    function getHandBallWorldPosition() {
+      const pos = new THREE.Vector3();
+      const heldBall = document.getElementById('held-ball-mesh');
+      if (heldBall && heldBall.object3D) {
+        heldBall.object3D.getWorldPosition(pos);
+      } else {
+        const rigPos = document.getElementById('player-rig').getAttribute('position');
+        pos.set(rigPos.x + 0.22, rigPos.y + 1.37, rigPos.z - 0.65);
+      }
+      return pos;
+    }
+
+    function triggerConfetti() {
+      const container = document.getElementById('particles-container');
+      container.innerHTML = '';
+      const colors = ['#f59e0b', '#38bdf8', '#ef4444', '#10b981', '#a855f7', '#fbbf24'];
+
+      for (let i = 0; i < 30; i++) {
+        const p = document.createElement('a-entity');
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        const dx = (Math.random() - 0.5) * 2.2;
+        const dy = Math.random() * 1.8 + 0.4;
+        const dz = (Math.random() - 0.5) * 2.2;
+
+        p.setAttribute('geometry', 'primitive: box; width: 0.06; height: 0.06; depth: 0.06');
+        p.setAttribute('material', `color: ${color}; shader: flat`);
+        p.setAttribute('position', '0 0 0');
+        p.setAttribute('animation', `property: position; to: ${dx} ${dy} ${dz}; dur: 800; easing: easeOutQuad`);
+        p.setAttribute('animation__fade', 'property: material.opacity; from: 1; to: 0; dur: 800; easing: easeInQuad');
+
+        container.appendChild(p);
+      }
+
+      setTimeout(() => {
+        container.innerHTML = '';
+      }, 900);
+    }
+
+    function flashHoopLights() {
+      const led = document.getElementById('backboard-led');
+      const rim = document.getElementById('rim-mesh');
+      led.setAttribute('material', 'opacity: 1; color: #ef4444;');
+      rim.setAttribute('color', '#22c55e');
+
+      setTimeout(() => {
+        led.setAttribute('material', 'opacity: 0;');
+        rim.setAttribute('color', '#ea580c');
+      }, 700);
+    }
+
+    function showFeedback(text, isGood = true, isBlock = false) {
+      const fb = document.getElementById('shot-feedback');
+      fb.textContent = text;
+      fb.className = 'show' + (isBlock ? ' blocked' : '');
+      fb.style.color = isGood ? '#fbbf24' : '#ef4444';
+
+      const worldText = document.getElementById('world-popup-text');
+      worldText.setAttribute('text', `value: ${text}; color: ${isGood ? '#fbbf24' : '#ef4444'};`);
+
+      setTimeout(() => {
+        fb.className = '';
+        worldText.setAttribute('text', 'value: ;');
+      }, 1500);
+    }
+
+    // CHECK IF DEFENDER BLOCKS THE SHOT IN MID-AIR
+    function checkDefenderBlock() {
+      if (BallPhysics.isBlocked || !BallPhysics.isFreeInAir) return;
+
+      // Defender hand positions in world coordinates
+      const defPos = DefenderAI.position;
+      const defJumpY = DefenderAI.jumpY;
+
+      // Left and right hand block zones when jumping
+      const handHeight = 2.45 + defJumpY; // ~2.45m reaches up to 3.65m on jump
+      const handDist = Math.hypot(BallPhysics.position.x - defPos.x, BallPhysics.position.z - defPos.z);
+
+      // If ball is within 0.7m horizontally and hand height while defender is jumping
+      if (DefenderAI.isJumping && handDist < 0.65 && Math.abs(BallPhysics.position.y - handHeight) < 0.55) {
+        // SHOT IS BLOCKED!
+        BallPhysics.isBlocked = true;
+        GameState.timesBlocked++;
+        updateHUD();
+
+        // Swat the ball backward and down
+        BallPhysics.velocity.set(
+          (Math.random() - 0.5) * 3,
+          -2.5,
+          4.5 // swatted back towards player
+        );
+
+        audio.playBlockSound();
+        audio.playWhistle();
+        showFeedback('🚫 BLOCKED BY MARCUS #23!', false, true);
+
+        // Defender taunt
+        const taunts = ["Not in my house!", "Get that out of here!", "Too small!", "Good defense!"];
+        audio.speakTaunt(taunts[Math.floor(Math.random() * taunts.length)]);
+
+        // Auto reset
+        setTimeout(resetBall, 1600);
+      }
+    }
+
+    // Goal detection
+    function checkBasketGoal(prevPos, currPos) {
+      if (BallPhysics.hasScoredThisShot || BallPhysics.isBlocked) return;
+
+      const rim = BallPhysics.rimCenter;
+      if (prevPos.y >= rim.y && currPos.y < rim.y) {
+        const distHoriz = Math.hypot(currPos.x - rim.x, currPos.z - rim.z);
+        if (distHoriz < (BallPhysics.rimRadius - BallPhysics.radius * 0.3)) {
+          BallPhysics.hasScoredThisShot = true;
+          GameState.shotsMade++;
+
+          const isThreePointer = BallPhysics.shotOriginDistance > 6.75;
+          let points = isThreePointer ? 3 : 2;
+
+          const isSwish = (BallPhysics.rimHitCount === 0);
+          if (isSwish) {
+            points += 1;
+            audio.playSwish();
+          } else {
+            audio.playBounce(0.9);
+          }
+
+          audio.playCheer();
+          triggerConfetti();
+          flashHoopLights();
+
+          GameState.streak++;
+          if (GameState.streak > GameState.maxStreak) {
+            GameState.maxStreak = GameState.streak;
+          }
+
+          let multiplier = 1;
+          let feedbackText = '';
+          if (GameState.streak >= 3) {
+            multiplier = 2;
+            feedbackText = `🔥 ON FIRE! +${points * multiplier} PTS`;
+          } else if (isSwish) {
+            feedbackText = `✨ SWISH OVER DEFENDER! +${points} PTS`;
+          } else if (isThreePointer) {
+            feedbackText = `🎯 3-POINTER! +${points} PTS`;
+          } else {
+            feedbackText = `🏀 BUCKET! +${points} PTS`;
+          }
+
+          GameState.score += points * multiplier;
+          showFeedback(feedbackText, true);
+          updateHUD();
+
+          BallPhysics.position.x = rim.x;
+          BallPhysics.position.z = rim.z;
+          BallPhysics.velocity.y = -2.6;
+          BallPhysics.velocity.x = 0;
+          BallPhysics.velocity.z = 0;
+
+          const net = document.getElementById('net-mesh');
+          net.setAttribute('scale', '1.2 0.8 1.2');
+          setTimeout(() => net.setAttribute('scale', '1 1 1'), 300);
+
+          setTimeout(resetBall, 1400);
+        }
+      }
+    }
+
+    // MAIN PHYSICS LOOP
+    let lastTime = performance.now();
+
+    function physicsLoop(time) {
+      requestAnimationFrame(physicsLoop);
+      const dt = Math.min((time - lastTime) / 1000, 0.05);
+      lastTime = time;
+
+      // Update AI Defender
+      updateDefenderAI(dt);
+
+      if (!BallPhysics.isFreeInAir) {
+        return;
+      }
+
+      const prevPos = BallPhysics.position.clone();
+
+      // Gravity & Drag
+      BallPhysics.velocity.y += BallPhysics.gravity * dt;
+      BallPhysics.velocity.multiplyScalar(1 - 0.015 * dt);
+      BallPhysics.position.addScaledVector(BallPhysics.velocity, dt);
+
+      // Check Defender Block in flight
+      checkDefenderBlock();
+
+      // Floor bounce
+      if (BallPhysics.position.y <= BallPhysics.radius) {
+        BallPhysics.position.y = BallPhysics.radius;
+        if (Math.abs(BallPhysics.velocity.y) > 0.8) {
+          audio.playBounce(Math.min(Math.abs(BallPhysics.velocity.y) / 7, 0.9));
+        }
+        BallPhysics.velocity.y = -BallPhysics.velocity.y * 0.75;
+        BallPhysics.velocity.x *= 0.88;
+        BallPhysics.velocity.z *= 0.88;
+
+        if (Math.abs(BallPhysics.velocity.y) < 0.3 && BallPhysics.velocity.length() < 0.6) {
+          BallPhysics.velocity.set(0, 0, 0);
+          setTimeout(() => {
+            if (BallPhysics.isFreeInAir && BallPhysics.velocity.length() < 0.2) {
+              resetBall();
+            }
+          }, 1000);
+        }
+      }
+
+      // Backboard bounce
+      const bb = BallPhysics.bbCenter;
+      const r = BallPhysics.radius;
+      if (
+        BallPhysics.position.z - r <= bb.z + BallPhysics.bbDepth / 2 &&
+        BallPhysics.position.z + r >= bb.z - BallPhysics.bbDepth / 2 &&
+        Math.abs(BallPhysics.position.x - bb.x) <= BallPhysics.bbHalfW + r * 0.5 &&
+        Math.abs(BallPhysics.position.y - bb.y) <= BallPhysics.bbHalfH + r * 0.5
+      ) {
+        if (BallPhysics.velocity.z < 0) {
+          BallPhysics.velocity.z = -BallPhysics.velocity.z * 0.65;
+          BallPhysics.position.z = bb.z + BallPhysics.bbDepth / 2 + r;
+          audio.playBackboardThud(0.8);
+          BallPhysics.rimHitCount++;
+        }
+      }
+
+      // Rim collision
+      const rim = BallPhysics.rimCenter;
+      const dy = BallPhysics.position.y - rim.y;
+      if (Math.abs(dy) <= r + BallPhysics.rimTubeRadius) {
+        const dx = BallPhysics.position.x - rim.x;
+        const dz = BallPhysics.position.z - rim.z;
+        const horizDist = Math.hypot(dx, dz);
+        const distFromWire = Math.abs(horizDist - BallPhysics.rimRadius);
+        const totalDistToWire = Math.hypot(distFromWire, dy);
+
+        if (totalDistToWire <= (r + BallPhysics.rimTubeRadius)) {
+          const angle = Math.atan2(dz, dx);
+          const wirePoint = new THREE.Vector3(
+            rim.x + Math.cos(angle) * BallPhysics.rimRadius,
+            rim.y,
+            rim.z + Math.sin(angle) * BallPhysics.rimRadius
+          );
+
+          const collisionNormal = new THREE.Vector3().subVectors(BallPhysics.position, wirePoint).normalize();
+          const dot = BallPhysics.velocity.dot(collisionNormal);
+          if (dot < 0) {
+            BallPhysics.velocity.subScaledVector(collisionNormal, 1.55 * dot);
+            BallPhysics.position.copy(wirePoint).addScaledVector(collisionNormal, r + BallPhysics.rimTubeRadius + 0.005);
+            audio.playRimClank(0.7);
+            BallPhysics.rimHitCount++;
+          }
+        }
+      }
+
+      // Check goal
+      checkBasketGoal(prevPos, BallPhysics.position);
+
+      flyingBallMesh.setAttribute('position', `${BallPhysics.position.x.toFixed(3)} ${BallPhysics.position.y.toFixed(3)} ${BallPhysics.position.z.toFixed(3)}`);
+    }
+
+    requestAnimationFrame(physicsLoop);
+
+    /* ==========================================================================
+       7. SHOOTING CONTROLS & DEFENDER TRIGGER
+       ========================================================================== */
+    function launchBall(powerRatio = 0.78) {
+      if (BallPhysics.isFreeInAir) return;
+
+      audio.init();
+
+      // Trigger defender jump contest if close
+      const playerPos = document.getElementById('player-rig').getAttribute('position');
+      const distToDef = Math.hypot(DefenderAI.position.x - playerPos.x, DefenderAI.position.z - playerPos.z);
+      if (distToDef < 3.2 && !DefenderAI.isFakedOut) {
+        triggerDefenderJump();
+      }
+
+      const startPos = getHandBallWorldPosition();
+      BallPhysics.position.copy(startPos);
+
+      heldBallVisual.setAttribute('visible', 'false');
+      flyingBallMesh.setAttribute('visible', 'true');
+      flyingBallMesh.setAttribute('position', `${startPos.x} ${startPos.y} ${startPos.z}`);
+
+      const rim = BallPhysics.rimCenter;
+      const dx = rim.x - startPos.x;
+      const dz = rim.z - startPos.z;
+      const dist = Math.hypot(dx, dz);
+      BallPhysics.shotOriginDistance = dist;
+
+      const theta = 48 * (Math.PI / 180);
+      const g = 9.81;
+
+      const deltaY = rim.y - startPos.y;
+      const cosT = Math.cos(theta);
+      const tanT = Math.tan(theta);
+
+      const denominator = 2 * cosT * cosT * (dist * tanT - deltaY);
+      let calculatedSpeed = 9.5;
+      if (denominator > 0) {
+        calculatedSpeed = Math.sqrt((g * dist * dist) / denominator);
+      }
+
+      // Defender contest effect: if heavily contested and not blocked, slight trajectory pressure
+      let contestMod = 1.0;
+      if (DefenderAI.contestLevel === 'SMOTHERED') {
+        contestMod = (Math.random() > 0.4 ? 0.93 : 1.05); // high miss chance if smothered!
+      }
+
+      const accuracyModifier = (0.88 + (powerRatio * 0.28)) * contestMod;
+      const finalSpeed = calculatedSpeed * accuracyModifier;
+
+      const dirX = dx / dist;
+      const dirZ = dz / dist;
+
+      BallPhysics.velocity.set(
+        dirX * finalSpeed * cosT,
+        finalSpeed * Math.sin(theta),
+        dirZ * finalSpeed * cosT
+      );
+
+      BallPhysics.isFreeInAir = true;
+      BallPhysics.hasScoredThisShot = false;
+      BallPhysics.isBlocked = false;
+      BallPhysics.rimHitCount = 0;
+      GameState.shotsAttempted++;
+      updateHUD();
+      updateTrajectoryArc();
+
+      setTimeout(() => {
+        if (!BallPhysics.hasScoredThisShot && BallPhysics.isFreeInAir && !BallPhysics.isBlocked) {
+          GameState.streak = 0;
+          updateHUD();
+          resetBall();
+        }
+      }, 3800);
+    }
+
+    // Power Meter
+    let powerAnimFrame = null;
+    let lastPowerTime = performance.now();
+
+    function updatePowerMeter(time) {
+      if (GameState.isChargingPower) {
+        const dt = (time - lastPowerTime) / 1000;
+        lastPowerTime = time;
+
+        GameState.powerValue += GameState.powerSpeed * GameState.powerDirection * dt;
+        if (GameState.powerValue >= 100) {
+          GameState.powerValue = 100;
+          GameState.powerDirection = -1;
+        } else if (GameState.powerValue <= 0) {
+          GameState.powerValue = 0;
+          GameState.powerDirection = 1;
+        }
+
+        const fill = document.getElementById('power-bar-fill');
+        const text = document.getElementById('power-text');
+        fill.style.width = `${GameState.powerValue}%`;
+        text.textContent = `POWER: ${Math.round(GameState.powerValue)}%`;
+
+        powerAnimFrame = requestAnimationFrame(updatePowerMeter);
+      }
+    }
+
+    function startCharging() {
+      if (BallPhysics.isFreeInAir) return;
+      audio.init();
+      GameState.isChargingPower = true;
+      GameState.powerValue = 25;
+      GameState.powerDirection = 1;
+      lastPowerTime = performance.now();
+      document.getElementById('power-meter-container').style.display = 'flex';
+      document.getElementById('big-shoot-btn').classList.add('charging');
+      powerAnimFrame = requestAnimationFrame(updatePowerMeter);
+    }
+
+    function releaseAndShoot() {
+      if (GameState.isChargingPower) {
+        GameState.isChargingPower = false;
+        if (powerAnimFrame) cancelAnimationFrame(powerAnimFrame);
+        document.getElementById('power-meter-container').style.display = 'none';
+        document.getElementById('big-shoot-btn').classList.remove('charging');
+
+        const ratio = GameState.powerValue / 100;
+        launchBall(ratio);
+      }
+    }
+
+    const shootBtn = document.getElementById('big-shoot-btn');
+    shootBtn.addEventListener('mousedown', startCharging);
+    window.addEventListener('mouseup', releaseAndShoot);
+
+    shootBtn.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      startCharging();
+    });
+    window.addEventListener('touchend', releaseAndShoot);
+
+    // Flick swipe on court
+    const dragLayer = document.getElementById('drag-shoot-layer');
+    let dragStartY = 0;
+    let dragStartTime = 0;
+    let isDragging = false;
+
+    dragLayer.addEventListener('mousedown', (e) => {
+      if (BallPhysics.isFreeInAir) return;
+      isDragging = true;
+      dragStartY = e.clientY;
+      dragStartTime = performance.now();
+    });
+
+    dragLayer.addEventListener('mouseup', (e) => {
+      if (!isDragging) return;
+      isDragging = false;
+      const deltaY = dragStartY - e.clientY;
+      const duration = (performance.now() - dragStartTime) / 1000;
+
+      if (deltaY > 40) {
+        const flickVelocity = deltaY / Math.max(duration, 0.08);
+        const power = Math.min(Math.max(flickVelocity / 900, 0.65), 0.95);
+        launchBall(power);
+      }
+    });
+
+    dragLayer.addEventListener('touchstart', (e) => {
+      if (BallPhysics.isFreeInAir) return;
+      isDragging = true;
+      dragStartY = e.touches[0].clientY;
+      dragStartTime = performance.now();
+    });
+
+    dragLayer.addEventListener('touchend', (e) => {
+      if (!isDragging) return;
+      isDragging = false;
+      const deltaY = dragStartY - (e.changedTouches[0] ? e.changedTouches[0].clientY : dragStartY);
+      const duration = (performance.now() - dragStartTime) / 1000;
+
+      if (deltaY > 30) {
+        const flickVelocity = deltaY / Math.max(duration, 0.08);
+        const power = Math.min(Math.max(flickVelocity / 800, 0.65), 0.95);
+        launchBall(power);
+      }
+    });
+
+    // Keyboard controls (Space shoot, F pump fake, R reset, 1-5 spots)
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Space' && !e.repeat) {
+        startCharging();
+      } else if (e.code === 'KeyF') {
+        performPumpFake();
+      } else if (e.code === 'KeyR') {
+        resetBall();
+      } else if (e.code === 'Digit1') {
+        switchSpot('freethrow');
+      } else if (e.code === 'Digit2') {
+        switchSpot('paint');
+      } else if (e.code === 'Digit3') {
+        switchSpot('topkey');
+      } else if (e.code === 'Digit4') {
+        switchSpot('leftwing');
+      } else if (e.code === 'Digit5') {
+        switchSpot('rightwing');
+      }
+    });
+
+    window.addEventListener('keyup', (e) => {
+      if (e.code === 'Space') {
+        releaseAndShoot();
+      }
+    });
+
+    document.getElementById('btn-reset-ball').addEventListener('click', resetBall);
+
+    // Aim Guide
+    const aimBtn = document.getElementById('btn-aim-guide');
+    aimBtn.addEventListener('click', () => {
+      GameState.showAimGuide = !GameState.showAimGuide;
+      aimBtn.textContent = `🎯 AIM ARC: ${GameState.showAimGuide ? 'ON' : 'OFF'}`;
+      updateTrajectoryArc();
+    });
+
+    // Mode Switcher
+    const modeBtn = document.getElementById('btn-mode');
+    modeBtn.addEventListener('click', () => {
+      if (GameState.mode === 'timed') {
+        GameState.mode = 'practice';
+        modeBtn.innerHTML = '<span>♾️</span> MODE: 1v1 PRACTICE';
+      } else {
+        GameState.mode = 'timed';
+        GameState.timeRemaining = 60;
+        modeBtn.innerHTML = '<span>⏱️</span> MODE: 60s 1v1';
+      }
+      updateHUD();
+    });
+
+    // Teleport Spots
+    const SPOTS = {
+      freethrow: { x: 0, y: 0, z: -1.2 },
+      paint: { x: 0, y: 0, z: -4.0 },
+      topkey: { x: 0, y: 0, z: 0.8 },
+      leftwing: { x: -5.2, y: 0, z: -1.5 },
+      rightwing: { x: 5.2, y: 0, z: -1.5 }
+    };
+
+    function switchSpot(spotKey) {
+      if (!SPOTS[spotKey]) return;
+      GameState.currentSpot = spotKey;
+
+      const spot = SPOTS[spotKey];
+      const rig = document.getElementById('player-rig');
+      rig.setAttribute('position', `${spot.x} ${spot.y} ${spot.z}`);
+
+      document.querySelectorAll('.spot-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.spot === spotKey);
+      });
+
+      const rack = document.getElementById('ball-rack');
+      rack.setAttribute('position', `${spot.x - 1.5} ${spot.y} ${spot.z}`);
+
+      resetBall();
+    }
+
+    document.querySelectorAll('.spot-btn').forEach(btn => {
+      btn.addEventListener('click', () => switchSpot(btn.dataset.spot));
+    });
+
+    document.querySelectorAll('.spot-pad').forEach(pad => {
+      pad.addEventListener('click', () => {
+        const spot = pad.dataset.spot;
+        if (spot) switchSpot(spot);
+      });
+    });
+
+    // VR Controllers Support
+    function setupVRController(controllerEl) {
+      if (!controllerEl) return;
+      let prevPos = new THREE.Vector3();
+      let velocity = new THREE.Vector3();
+
+      controllerEl.addEventListener('triggerdown', () => {
+        audio.init();
+        if (BallPhysics.isFreeInAir) {
+          resetBall();
+        } else {
+          startCharging();
+        }
+      });
+
+      controllerEl.addEventListener('triggerup', () => {
+        if (GameState.isChargingPower) {
+          releaseAndShoot();
+        } else if (!BallPhysics.isFreeInAir) {
+          const speed = velocity.length();
+          const power = Math.min(Math.max(speed / 4.0, 0.6), 0.95);
+          launchBall(power);
+        }
+      });
+
+      setInterval(() => {
+        const obj = controllerEl.object3D;
+        if (obj) {
+          const currentPos = new THREE.Vector3();
+          obj.getWorldPosition(currentPos);
+          velocity.subVectors(currentPos, prevPos).multiplyScalar(60);
+          prevPos.copy(currentPos);
+        }
+      }, 16);
+    }
+
+    setupVRController(document.getElementById('right-controller'));
+    setupVRController(document.getElementById('left-controller'));
+
+    // Initial load
+    updateHUD();
+    resetBall();
+  </script>
+</body>
+</html>

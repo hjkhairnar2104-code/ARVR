@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DisasterSim AI — Immersive 3D Disaster Simulation & Employee Safety Training</title>
+    <meta name="description" content="Enterprise 3D disaster simulation and employee safety training platform powered by AI assessment and WebXR." />
+    
+    <!-- Process and Global polyfills for Browser ESM -->
+    <script>
+      window.process = { env: { NODE_ENV: 'development' } };
+      window.global = window;
+    </script>
+
+    <!-- Google Fonts Inter & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+              mono: ['JetBrains Mono', 'monospace'],
+            },
+            colors: {
+              primary: {
+                50: '#fff7ed',
+                100: '#ffedd5',
+                500: '#f97316',
+                600: '#ea580c',
+                700: '#c2410c',
+              }
+            }
+          }
+        }
+      }
+    </script>
+
+    <!-- Browser Import Map for Zero-Build ESM Loading -->
+    <script type="importmap">
+    {
+      "imports": {
+        "react": "https://esm.sh/react@18.3.1",
+        "react-dom": "https://esm.sh/react-dom@18.3.1",
+        "react-dom/client": "https://esm.sh/react-dom@18.3.1/client",
+        "react/jsx-runtime": "https://esm.sh/react@18.3.1/jsx-runtime",
+        "react-router-dom": "https://esm.sh/react-router-dom@6.23.1?external=react,react-dom",
+        "three": "https://esm.sh/three@0.165.0",
+        "@react-three/fiber": "https://esm.sh/@react-three/fiber@8.16.8?external=react,react-dom,three",
+        "@react-three/drei": "https://esm.sh/@react-three/drei@9.106.0?external=react,react-dom,three,@react-three/fiber",
+        "@react-three/xr": "https://esm.sh/@react-three/xr@5.7.1?external=react,react-dom,three,@react-three/fiber",
+        "lucide-react": "https://esm.sh/lucide-react@0.395.0?external=react",
+        "recharts": "https://esm.sh/recharts@2.12.7?external=react,react-dom",
+        "axios": "https://esm.sh/axios@1.7.2"
+      }
+    }
+    </script>
+    <link rel="stylesheet" href="/src/index.css" />
+  </head>
+  <body class="bg-slate-950 text-slate-100 font-sans antialiased overflow-x-hidden selection:bg-orange-500 selection:text-white">
+    <div id="root"></div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

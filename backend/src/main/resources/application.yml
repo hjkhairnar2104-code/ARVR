@@ -1,0 +1,29 @@
+server:
+  port: 8080
+  error:
+    include-message: always
+
+spring:
+  application:
+    name: disastersim-backend
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+
+app:
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/disastersimdb}
+    username: ${DATABASE_USERNAME:postgres}
+    password: ${DATABASE_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+  jwt:
+    secret: ${JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
+    expiration-ms: 86400000
+  gemini:
+    api-key: ${GEMINI_API_KEY:}
+    model: gemini-1.5-flash

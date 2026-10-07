@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: disastersim_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: disastersimdb
+      POSTGRES_USER: disastersim
+      POSTGRES_PASSWORD: disastersim_secure_password_2026
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U disastersim -d disastersimdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+    driver: local
